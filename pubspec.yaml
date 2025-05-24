@@ -1,0 +1,41 @@
+name: zippy
+description: "Mobile application for smart delivery with AI robot"
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  provider: ^6.1.5
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  fonts:
+    - family: Sen
+      fonts:
+        - asset: assets/fonts/Sen-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Sen-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Sen-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Sen-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Sen-Regular.ttf
+          weight: 400
