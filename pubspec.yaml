@@ -12,8 +12,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  provider: ^6.1.5
+  flutter_localizations:
+    sdk: flutter
 
+  provider: ^6.1.5
+  easy_localization: ^3.0.3
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -25,6 +28,10 @@ dev_dependencies:
 flutter:
 
   uses-material-design: true
+
+  assets:
+    - assets/translations/en-US.json
+    - assets/translations/vi-VN.json
 
   fonts:
     - family: Sen
