@@ -1,4 +1,5 @@
 {
-  "title": "Thay đổi ngôn ngữ",
-  "toggle": "Chế độ tối"
+  "login": "Đăng nhập",
+  "login_subtitle": "Đăng nhập với tài khoản của bạn",
+  "signup": "Đăng ký"
 }

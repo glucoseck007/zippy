@@ -10,22 +10,9 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.themeMode == ThemeMode.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('title')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language),
-            onPressed: () {
-              final currentLocale = context.locale;
-              final newLocale = currentLocale.languageCode == 'en'
-                  ? const Locale('vi', 'VN')
-                  : const Locale('en', 'US');
-              context.setLocale(newLocale);
-            },
-          )
-        ],
       ),
       body: Center(
         child: SwitchListTile(
