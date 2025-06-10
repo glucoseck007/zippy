@@ -1,5 +1,63 @@
 {
-  "login": "Đăng nhập",
-  "login_subtitle": "Đăng nhập với tài khoản của bạn",
-  "signup": "Đăng ký"
+  "auth": {
+    "ok": "OK",
+    "login": "Đăng nhập",
+    "login_subtitle": "Vui lòng đăng nhập vào tài khoản của bạn",
+    "signup": "Đăng ký",
+    "signup_subtitle": "Tạo tài khoản mới",
+    "forgot_password": "Quên mật khẩu",
+    "forgot_password_subtitle": "Nhập địa chỉ email của bạn và chúng tôi sẽ gửi link đặt lại mật khẩu",
+    "or": "Hoặc",
+    "createAccount": "Chưa có tài khoản?",
+    "haveAccount": "Đã có tài khoản?",
+    "remember_password": "Nhớ mật khẩu?",
+    "error": "Lỗi",
+    "reset_password_sent": "Đã gửi link đặt lại",
+    "reset_password_instruction": "Chúng tôi đã gửi link đặt lại mật khẩu đến email của bạn. Vui lòng kiểm tra hộp thư và làm theo hướng dẫn.",
+    "reset_password_info": "Hãy kiểm tra thư mục spam nếu bạn không thấy email trong vài phút.",
+    "input": {
+      "email": "Email",
+      "email_hint": "Nhập email của bạn",
+      "username": "Tên đăng nhập",
+      "username_hint": "Nhập tên đăng nhập của bạn",
+      "first_name": "Tên",
+      "first_name_hint": "Nhập tên của bạn",
+      "last_name": "Họ",
+      "last_name_hint": "Nhập họ của bạn",
+      "password": "Mật khẩu",
+      "password_hint": "Nhập mật khẩu của bạn",
+      "confirm_password": "Xác nhận mật khẩu",
+      "confirm_password_hint": "Xác nhận mật khẩu của bạn",
+      "full_name": "Họ và tên",
+      "full_name_hint": "Nhập họ và tên của bạn",
+      "phone": "Số điện thoại",
+      "phone_hint": "Nhập số điện thoại của bạn"
+    },
+    "button": {
+      "login": "Đăng nhập",
+      "signup": "Đăng ký",
+      "forgot_password": "Quên mật khẩu?",
+      "create_account": "Tạo tài khoản",
+      "reset_password": "Gửi link đặt lại",
+      "ok": "OK"
+    },
+    "signup_success": "Tạo tài khoản thành công!",
+    "signup_failed": "Không thể tạo tài khoản. Vui lòng thử lại.",
+    "error_connection": "Không thể kết nối. Vui lòng kiểm tra kết nối Internet và thử lại.",
+    "checkbox": {
+      "remember_me": "Ghi nhớ tôi",
+      "agree_terms": "Tôi đồng ý với Điều khoản & Điều kiện"
+    },
+    "validation": {
+      "email_required": "Email là bắt buộc",
+      "email_invalid": "Email không hợp lệ",
+      "first_name_required": "Tên là bắt buộc",
+      "last_name_required": "Họ là bắt buộc",
+      "password_required": "Mật khẩu là bắt buộc",
+      "confirm_password_required": "Xác nhận mật khẩu là bắt buộc",
+      "password_mismatch": "Mật khẩu không khớp",
+      "phone_required": "Số điện thoại là bắt buộc",
+      "reset_failed": "Không thể gửi link đặt lại. Vui lòng thử lại."
+    }
+  }
 }

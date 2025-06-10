@@ -11,6 +11,7 @@ environment:
 dependencies:
   flutter_native_splash: ^2.4.6
   flutter_screenutil: ^5.5.3+2
+  flutter_dotenv: ^5.2.1
   flutter:
     sdk: flutter
 
@@ -20,6 +21,7 @@ dependencies:
   provider: ^6.1.5
   easy_localization: ^3.0.3
   cupertino_icons: ^1.0.8
+  http: ^0.13.6
 
 dev_dependencies:
   flutter_test:
@@ -34,17 +36,18 @@ flutter:
   assets:
     - assets/translations/en-US.json
     - assets/translations/vi-VN.json
+    - .env
 
   fonts:
-    - family: Sen
+    - family: Quicksand
       fonts:
-        - asset: assets/fonts/Sen-ExtraBold.ttf
-          weight: 800
-        - asset: assets/fonts/Sen-Bold.ttf
+        - asset: assets/fonts/Quicksand-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Sen-SemiBold.ttf
+        - asset: assets/fonts/Quicksand-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/Sen-Medium.ttf
+        - asset: assets/fonts/Quicksand-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Sen-Regular.ttf
+        - asset: assets/fonts/Quicksand-Regular.ttf
           weight: 400
+        - asset: assets/fonts/Quicksand-Light.ttf
+          weight: 300
