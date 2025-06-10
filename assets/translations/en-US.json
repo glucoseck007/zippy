@@ -1,5 +1,65 @@
 {
-  "login": "Log in",
-  "login_subtitle": "Please sign in to your existing account",
-  "signup": "Sign up"
+  "auth": {
+    "ok": "OK",
+    "login": "Log in",
+    "login_subtitle": "Please sign in to your existing account",
+    "signup": "Sign up",
+    "signup_subtitle": "Create your new account",
+    "forgot_password": "Forgot Password",
+    "forgot_password_subtitle": "Enter your email address and we'll send you a link to reset your password",
+    "or": "Or",
+    "createAccount": "Don't have an account yet?",
+    "haveAccount": "Already have an account?",
+    "remember_password": "Remember your password?",
+    "error": "Error",
+    "reset_password_sent": "Reset Link Sent",
+    "reset_password_instruction": "We've sent a password reset link to your email address. Please check your inbox and follow the instructions.",
+    "reset_password_info": "Make sure to check your spam folder if you don't see the email within a few minutes.",
+    "reset_failed": "Failed to send reset link. Please try again.",
+    "signup_success": "Your account has been created successfully!",
+    "signup_failed": "Failed to create your account. Please try again.",
+    "login_success": "Logged in successfully!",
+    "login_failed": "Login failed. Please try again.",
+    "error_connection": "Unable to connect. Please check your Internet connection and try again.",
+    "input": {
+      "email": "Email",
+      "email_hint": "Enter your email",
+      "username": "Username",
+      "username_hint": "Enter your username",
+      "first_name": "First Name",
+      "first_name_hint": "Enter your first name",
+      "last_name": "Last Name",
+      "last_name_hint": "Enter your last name",
+      "password": "Password",
+      "password_hint": "Enter your password",
+      "confirm_password": "Confirm Password",
+      "confirm_password_hint": "Confirm your password",
+      "full_name": "Full Name",
+      "full_name_hint": "Enter your full name",
+      "phone": "Phone Number",
+      "phone_hint": "Enter your phone number"
+    },
+    "button": {
+      "login": "Log in",
+      "signup": "Sign up",
+      "forgot_password": "Forgot password?",
+      "create_account": "Create Account",
+      "reset_password": "Send Reset Link",
+      "ok": "OK"
+    },
+    "checkbox": {
+      "remember_me": "Remember me",
+      "agree_terms": "I agree to the Terms & Conditions"
+    },
+    "validation": {
+      "email_required": "Email is required",
+      "email_invalid": "Email is invalid",
+      "first_name_required": "First name is required",
+      "last_name_required": "Last name is required",
+      "password_required": "Password is required",
+      "confirm_password_required": "Confirm password is required",
+      "password_mismatch": "Passwords do not match",
+      "phone_required": "Phone number is required"
+    }
+  }
 }
