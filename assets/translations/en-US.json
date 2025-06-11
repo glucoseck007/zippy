@@ -1,6 +1,8 @@
 {
   "auth": {
     "ok": "OK",
+    "resend_code": "Resend",
+    "resend_code_sent": "Verification code has been resent to your email",
     "login": "Log in",
     "login_subtitle": "Please sign in to your existing account",
     "signup": "Sign up",
@@ -24,6 +26,8 @@
     "input": {
       "email": "Email",
       "email_hint": "Enter your email",
+      "email_or_username": "Email/Username",
+      "email_or_username_hint": "Enter your email or username",
       "username": "Username",
       "username_hint": "Enter your username",
       "first_name": "First Name",
@@ -45,8 +49,13 @@
       "forgot_password": "Forgot password?",
       "create_account": "Create Account",
       "reset_password": "Send Reset Link",
+      "verify": "Verify",
       "ok": "OK"
     },
+    "verification": "Verification",
+    "verification_subtitle": "We have sent a code to your email",
+    "verification_code": "CODE",
+    "resend_in": "Resend ({0}s)",
     "checkbox": {
       "remember_me": "Remember me",
       "agree_terms": "I agree to the Terms & Conditions"
@@ -54,12 +63,14 @@
     "validation": {
       "email_required": "Email is required",
       "email_invalid": "Email is invalid",
+      "email_or_username_required": "Email or username is required",
       "first_name_required": "First name is required",
       "last_name_required": "Last name is required",
       "password_required": "Password is required",
       "confirm_password_required": "Confirm password is required",
       "password_mismatch": "Passwords do not match",
-      "phone_required": "Phone number is required"
+      "phone_required": "Phone number is required",
+      "complete_code": "Please enter a complete 6-digit code"
     }
   }
 }

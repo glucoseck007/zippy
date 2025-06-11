@@ -73,7 +73,6 @@ class _SignupScreenState extends State<SignupScreen> {
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
-      print(resp.statusCode);
       if (resp.statusCode == 200) {
         // on success go back to login
         if (mounted) {
@@ -105,8 +104,9 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   String? _validateEmail(String? v) {
-    if (v == null || v.trim().isEmpty)
+    if (v == null || v.trim().isEmpty) {
       return tr('auth.validation.email_required');
+    }
     final re = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}");
     return re.hasMatch(v.trim()) ? null : tr('auth.validation.email_invalid');
   }
@@ -174,6 +174,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 : AppColors.inputColor,
                             boxShadow: [
                               BoxShadow(
+                                // ignore: deprecated_member_use
                                 color: Colors.black.withOpacity(0.1),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),

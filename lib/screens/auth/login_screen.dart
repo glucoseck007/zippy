@@ -6,8 +6,8 @@ import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/theme_provider.dart';
-import 'package:zippy/screens/signup_screen.dart';
-import 'package:zippy/screens/forgot_password_screen.dart';
+import 'package:zippy/screens/auth/signup_screen.dart';
+import 'package:zippy/screens/auth/forgot_password_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -23,7 +23,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _emailOrUsernameController =
+      TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
@@ -31,17 +32,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _emailOrUsernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  String? _validateEmail(String? v) {
+  String? _validateEmailOrUsername(String? v) {
     if (v == null || v.trim().isEmpty) {
-      return tr('auth.validation.email_required');
+      return tr('auth.validation.email_or_username_required');
     }
-    final re = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}");
-    return re.hasMatch(v.trim()) ? null : tr('auth.validation.email_invalid');
+    // Accept both email and username (no specific format validation)
+    return null;
   }
 
   String? _validatePassword(String? v) {
@@ -75,10 +76,17 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
     final uri = Uri.parse('${dotenv.env['BACKEND_API_ENDPOINT']}/auth/login');
+
+    final loginValue = _emailOrUsernameController.text.trim();
+    final isEmail = RegExp(
+      r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
+    ).hasMatch(loginValue);
+
     final body = jsonEncode({
-      'email': _emailController.text.trim(),
+      if (isEmail) 'email': loginValue else 'username': loginValue,
       'password': _passwordController.text,
     });
+
     try {
       final resp = await http.post(
         uri,
@@ -119,10 +127,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // determine if login can be attempted
     final canLogin =
-        _emailController.text.trim().isNotEmpty &&
+        _emailOrUsernameController.text.trim().isNotEmpty &&
         _passwordController.text.isNotEmpty;
     // rebuild when controllers change
-    _emailController.addListener(() => setState(() {}));
+    _emailOrUsernameController.addListener(() => setState(() {}));
     _passwordController.addListener(() => setState(() {}));
 
     return SafeArea(
@@ -182,11 +190,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           CustomInput(
-                            labelKey: 'auth.input.email',
-                            hintKey: 'auth.input.email_hint',
-                            controller: _emailController,
-                            validator: _validateEmail,
-                            keyboardType: TextInputType.emailAddress,
+                            labelKey: 'auth.input.email_or_username',
+                            hintKey: 'auth.input.email_or_username_hint',
+                            controller: _emailOrUsernameController,
+                            validator: _validateEmailOrUsername,
+                            keyboardType: TextInputType.text,
                             onChanged: (_) => setState(() {}),
                           ),
                           const SizedBox(height: 16),
