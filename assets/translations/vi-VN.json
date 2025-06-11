@@ -1,6 +1,8 @@
 {
   "auth": {
     "ok": "OK",
+    "resend_code": "Gửi lại",
+    "resend_code_sent": "Mã xác thực đã được gửi lại đến email của bạn",
     "login": "Đăng nhập",
     "login_subtitle": "Vui lòng đăng nhập vào tài khoản của bạn",
     "signup": "Đăng ký",
@@ -18,6 +20,8 @@
     "input": {
       "email": "Email",
       "email_hint": "Nhập email của bạn",
+      "email_or_username": "Tên đăng nhập",
+      "email_or_username_hint": "Nhập tên đăng nhập của bạn",
       "username": "Tên đăng nhập",
       "username_hint": "Nhập tên đăng nhập của bạn",
       "first_name": "Tên",
@@ -39,8 +43,13 @@
       "forgot_password": "Quên mật khẩu?",
       "create_account": "Tạo tài khoản",
       "reset_password": "Gửi link đặt lại",
+      "verify": "Xác thực",
       "ok": "OK"
     },
+    "verification": "Xác thực",
+    "verification_subtitle": "Chúng tôi đã gửi mã xác thực đến email của bạn",
+    "verification_code": "MÃ XÁC THỰC",
+    "resend_in": "Gửi lại ({0}s)",
     "signup_success": "Tạo tài khoản thành công!",
     "signup_failed": "Không thể tạo tài khoản. Vui lòng thử lại.",
     "error_connection": "Không thể kết nối. Vui lòng kiểm tra kết nối Internet và thử lại.",
@@ -51,12 +60,14 @@
     "validation": {
       "email_required": "Email là bắt buộc",
       "email_invalid": "Email không hợp lệ",
+      "email_or_username_required": "Email hoặc tên đăng nhập là bắt buộc",
       "first_name_required": "Tên là bắt buộc",
       "last_name_required": "Họ là bắt buộc",
       "password_required": "Mật khẩu là bắt buộc",
       "confirm_password_required": "Xác nhận mật khẩu là bắt buộc",
       "password_mismatch": "Mật khẩu không khớp",
       "phone_required": "Số điện thoại là bắt buộc",
+      "complete_code": "Vui lòng nhập đủ mã xác thực 6 chữ số",
       "reset_failed": "Không thể gửi link đặt lại. Vui lòng thử lại."
     }
   }
