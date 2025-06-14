@@ -1,7 +1,7 @@
 {
   "auth": {
     "ok": "OK",
-    "resend_code": "Resend",
+    "resend_code": "Resend Code",
     "resend_code_sent": "Verification code has been resent to your email",
     "login": "Log in",
     "login_subtitle": "Please sign in to your existing account",
@@ -23,6 +23,16 @@
     "login_success": "Logged in successfully!",
     "login_failed": "Login failed. Please try again.",
     "error_connection": "Unable to connect. Please check your Internet connection and try again.",
+    "error_server": "Server error occurred. Please try again later.",
+    "error_not_verified": "Account created but needs verification. Redirecting to verification screen...",
+    "error_email_already_exists": "An account with this email already exists. Please use a different email or try logging in.",
+    "error_invalid_credentials": "Invalid email/username or password. Please check your credentials and try again.",
+    "error_verify_with_email": "Account verification required. Please log in with your email address to access verification.",
+    "verification": "Verification",
+    "verification_subtitle": "We have sent a code to your email",
+    "verification_code": "CODE",
+    "verification_failed": "Verification failed. Please check your code and try again.",
+    "resend_in": "Resend in {0}",
     "input": {
       "email": "Email",
       "email_hint": "Enter your email",
@@ -52,10 +62,6 @@
       "verify": "Verify",
       "ok": "OK"
     },
-    "verification": "Verification",
-    "verification_subtitle": "We have sent a code to your email",
-    "verification_code": "CODE",
-    "resend_in": "Resend ({0}s)",
     "checkbox": {
       "remember_me": "Remember me",
       "agree_terms": "I agree to the Terms & Conditions"
@@ -64,12 +70,15 @@
       "email_required": "Email is required",
       "email_invalid": "Email is invalid",
       "email_or_username_required": "Email or username is required",
+      "username_required": "Username is required",
       "first_name_required": "First name is required",
       "last_name_required": "Last name is required",
       "password_required": "Password is required",
+      "password_short": "Password must be at least 6 characters",
       "confirm_password_required": "Confirm password is required",
       "password_mismatch": "Passwords do not match",
       "phone_required": "Phone number is required",
+      "terms_required": "You must agree to the Terms & Conditions to continue",
       "complete_code": "Please enter a complete 6-digit code"
     }
   }

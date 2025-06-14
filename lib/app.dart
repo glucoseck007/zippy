@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:zippy/screens/auth/login_screen.dart';
+import 'package:zippy/screens/home.dart';
 
 import 'design/app_theme.dart';
 import 'providers/theme_provider.dart';
@@ -28,7 +29,11 @@ class MyApp extends StatelessWidget {
           ],
           supportedLocales: context.supportedLocales,
           locale: context.locale,
-          home: LoginScreen(),
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const LoginScreen(),
+            '/home': (context) => const HomeScreen(),
+          },
         );
       },
     );

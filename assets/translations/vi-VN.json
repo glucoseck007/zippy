@@ -1,7 +1,7 @@
 {
   "auth": {
     "ok": "OK",
-    "resend_code": "Gửi lại",
+    "resend_code": "Gửi lại mã",
     "resend_code_sent": "Mã xác thực đã được gửi lại đến email của bạn",
     "login": "Đăng nhập",
     "login_subtitle": "Vui lòng đăng nhập vào tài khoản của bạn",
@@ -17,6 +17,22 @@
     "reset_password_sent": "Đã gửi link đặt lại",
     "reset_password_instruction": "Chúng tôi đã gửi link đặt lại mật khẩu đến email của bạn. Vui lòng kiểm tra hộp thư và làm theo hướng dẫn.",
     "reset_password_info": "Hãy kiểm tra thư mục spam nếu bạn không thấy email trong vài phút.",
+    "reset_failed": "Không thể gửi link đặt lại. Vui lòng thử lại.",
+    "signup_success": "Tạo tài khoản thành công!",
+    "signup_failed": "Không thể tạo tài khoản. Vui lòng thử lại.",
+    "login_success": "Đăng nhập thành công!",
+    "login_failed": "Đăng nhập thất bại. Vui lòng thử lại.",
+    "error_connection": "Không thể kết nối. Vui lòng kiểm tra kết nối Internet và thử lại.",
+    "error_server": "Lỗi máy chủ. Vui lòng thử lại sau.",
+    "error_not_verified": "Tài khoản đã tạo nhưng cần xác thực. Đang chuyển đến màn hình xác thực...",
+    "error_email_already_exists": "Tài khoản với email này đã tồn tại. Vui lòng sử dụng email khác hoặc thử đăng nhập.",
+    "error_invalid_credentials": "Email/tên đăng nhập hoặc mật khẩu không đúng. Vui lòng kiểm tra thông tin và thử lại.",
+    "error_verify_with_email": "Cần xác thực tài khoản. Vui lòng đăng nhập bằng địa chỉ email để truy cập xác thực.",
+    "verification": "Xác thực",
+    "verification_subtitle": "Chúng tôi đã gửi mã xác thực đến email của bạn",
+    "verification_code": "MÃ XÁC THỰC",
+    "verification_failed": "Xác thực thất bại. Vui lòng kiểm tra mã và thử lại.",
+    "resend_in": "Gửi lại sau {0}",
     "input": {
       "email": "Email",
       "email_hint": "Nhập email của bạn",
@@ -46,13 +62,6 @@
       "verify": "Xác thực",
       "ok": "OK"
     },
-    "verification": "Xác thực",
-    "verification_subtitle": "Chúng tôi đã gửi mã xác thực đến email của bạn",
-    "verification_code": "MÃ XÁC THỰC",
-    "resend_in": "Gửi lại ({0}s)",
-    "signup_success": "Tạo tài khoản thành công!",
-    "signup_failed": "Không thể tạo tài khoản. Vui lòng thử lại.",
-    "error_connection": "Không thể kết nối. Vui lòng kiểm tra kết nối Internet và thử lại.",
     "checkbox": {
       "remember_me": "Ghi nhớ tôi",
       "agree_terms": "Tôi đồng ý với Điều khoản & Điều kiện"
@@ -61,14 +70,16 @@
       "email_required": "Email là bắt buộc",
       "email_invalid": "Email không hợp lệ",
       "email_or_username_required": "Email hoặc tên đăng nhập là bắt buộc",
+      "username_required": "Tên đăng nhập là bắt buộc",
       "first_name_required": "Tên là bắt buộc",
       "last_name_required": "Họ là bắt buộc",
       "password_required": "Mật khẩu là bắt buộc",
+      "password_short": "Mật khẩu phải có ít nhất 6 ký tự",
       "confirm_password_required": "Xác nhận mật khẩu là bắt buộc",
       "password_mismatch": "Mật khẩu không khớp",
       "phone_required": "Số điện thoại là bắt buộc",
-      "complete_code": "Vui lòng nhập đủ mã xác thực 6 chữ số",
-      "reset_failed": "Không thể gửi link đặt lại. Vui lòng thử lại."
+      "terms_required": "Bạn phải đồng ý với Điều khoản & Điều kiện để tiếp tục",
+      "complete_code": "Vui lòng nhập đủ mã xác thực 6 chữ số"
     }
   }
 }

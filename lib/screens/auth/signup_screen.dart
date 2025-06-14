@@ -7,6 +7,7 @@ import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/theme_provider.dart';
+import 'package:zippy/screens/auth/verify_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -51,6 +52,13 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    // Additional validation for terms acceptance
+    if (!_agreeToTerms) {
+      _showErrorDialog(tr('auth.validation.terms_required'));
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -65,7 +73,7 @@ class _SignupScreenState extends State<SignupScreen> {
       'phone': _phoneController.text.trim(),
       'password': _passwordController.text,
       'confirmPassword': _confirmPasswordController.text,
-      'termAccepted': _agreeToTerms,
+      'termsAccepted': _agreeToTerms,
     });
     try {
       final resp = await http.post(
@@ -73,13 +81,35 @@ class _SignupScreenState extends State<SignupScreen> {
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
-      if (resp.statusCode == 200) {
-        // on success go back to login
+      if (resp.statusCode == 201) {
+        // Navigate to verify screen with user's email
         if (mounted) {
-          NavigationManager.popWithTransition(context);
-          ScaffoldMessenger.of(
+          NavigationManager.navigateToWithSlideTransition(
             context,
-          ).showSnackBar(SnackBar(content: Text(tr('auth.signup_success'))));
+            VerifyScreen(email: _emailController.text.trim()),
+          );
+        }
+      } else if (resp.statusCode == 500) {
+        // Handle server errors
+        final msg = jsonDecode(resp.body)['message'] ?? tr('auth.error_server');
+        if (mounted) {
+          _showErrorDialog(msg);
+        }
+      } else if (resp.statusCode == 403) {
+        // Handle forbidden errors - account created but needs verification
+        final msg =
+            jsonDecode(resp.body)['message'] ?? tr('auth.error_not_verified');
+        if (mounted) {
+          // Show dialog and navigate after user clicks OK
+          _showVerificationDialog(msg);
+        }
+      } else if (resp.statusCode == 401) {
+        // Handle unauthorized errors
+        final msg =
+            jsonDecode(resp.body)['message'] ??
+            tr('auth.error_email_already_exists');
+        if (mounted) {
+          _showErrorDialog(msg);
         }
       } else {
         final msg =
@@ -125,6 +155,46 @@ class _SignupScreenState extends State<SignupScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr('auth.ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showVerificationDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('auth.error')),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop(); // Close dialog first
+
+              // Send resend OTP request before navigating
+              final email = _emailController.text.trim();
+              try {
+                final resendUri = Uri.parse(
+                  '${dotenv.env['BACKEND_API_ENDPOINT']}/auth/resend-otp',
+                );
+                await http.get(
+                  resendUri.replace(queryParameters: {'credential': email}),
+                  headers: {'Content-Type': 'application/json'},
+                );
+              } catch (e) {
+                print('Resend OTP error: $e');
+              }
+
+              // Navigate to verify screen
+              if (mounted) {
+                NavigationManager.navigateToWithSlideTransition(
+                  context,
+                  VerifyScreen(email: email),
+                );
+              }
+            },
             child: Text(tr('auth.ok')),
           ),
         ],
