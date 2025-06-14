@@ -1,18 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/theme_provider.dart';
-import 'package:zippy/screens/home.dart';
-import 'package:zippy/utils/navigation_manager.dart';
 
 class VerifyScreen extends StatefulWidget {
   final String email;
 
-  const VerifyScreen({super.key, this.email = 'example@gmail.com'});
+  const VerifyScreen({super.key, required this.email});
 
   @override
   State<VerifyScreen> createState() => _VerifyScreenState();
@@ -65,35 +67,63 @@ class _VerifyScreenState extends State<VerifyScreen> {
     });
   }
 
-  // String get formattedTime {
-  //   // Format time as minutes:seconds
-  //   int minutes = _secondsRemaining ~/ 60;
-  //   int seconds = _secondsRemaining % 60;
-  //   String formatted =
-  //       '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  //   print('Formatted time: $formatted'); // Debug print
-  //   return formatted;
-  // }
+  Future<void> resendCode() async {
+    try {
+      // Reset timer
+      setState(() {
+        _secondsRemaining = 120;
+      });
+      startTimer(); // Restart the timer
 
-  void resendCode() {
-    // Reset timer
-    setState(() {
-      _secondsRemaining = 120;
-    });
-    startTimer(); // Restart the timer
+      // Call API to resend OTP
+      final uri = Uri.parse(
+        '${dotenv.env['BACKEND_API_ENDPOINT']}/auth/resend-otp',
+      );
+      final response = await http.get(
+        uri.replace(queryParameters: {'email': widget.email}),
+        headers: {'Content-Type': 'application/json'},
+      );
 
-    // Show feedback to user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(tr('auth.resend_code_sent')),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    // TODO: Call API to resend code
+      if (mounted) {
+        if (response.statusCode == 200) {
+          // Show success feedback
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(tr('auth.resend_code_sent')),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          // Show error message
+          final errorMsg =
+              jsonDecode(response.body)['message'] ?? 'Failed to resend code';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg), duration: Duration(seconds: 3)),
+          );
+        }
+      }
+    } on SocketException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('auth.error_connection')),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
-  void verifyCode() {
+  Future<void> verifyCode() async {
     // Get full code
     final code = _controllers.map((controller) => controller.text).join();
     if (code.length != 6) {
@@ -108,19 +138,58 @@ class _VerifyScreenState extends State<VerifyScreen> {
       _isLoading = true;
     });
 
-    // TODO: Call API to verify code
-    // Simulate API call with a delay
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      // Call API to verify code
+      final uri = Uri.parse(
+        '${dotenv.env['BACKEND_API_ENDPOINT']}/auth/verify-otp',
+      );
+      final body = jsonEncode({'credential': widget.email, 'otp': code});
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          // Verification successful, navigate to home
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          // Show error message
+          final errorData = jsonDecode(response.body);
+          final errorMsg =
+              errorData['message'] ?? tr('auth.verification_failed');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg), duration: Duration(seconds: 3)),
+          );
+        }
+      }
+    } on SocketException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('auth.error_connection')),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-
-        // For demo purposes, any code is accepted
-        // In a real app, validate the code with your backend
-        NavigationManager.navigateToWithSlideTransition(context, HomeScreen());
       }
-    });
+    }
   }
 
   @override
@@ -250,20 +319,10 @@ class _VerifyScreenState extends State<VerifyScreen> {
                         Text(
                           tr('auth.verification_subtitle'),
                           style: isDarkMode
-                              ? AppTypography.dmSubTitleText
-                              : AppTypography.subTitleText,
+                              ? AppTypography.dmBodyText
+                              : AppTypography.bodyText,
                         ),
                         SizedBox(height: 8),
-                        Text(
-                          widget.email,
-                          style: isDarkMode
-                              ? AppTypography.dmBodyText.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                )
-                              : AppTypography.bodyText.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                        ),
                       ],
                     ),
                   ),
