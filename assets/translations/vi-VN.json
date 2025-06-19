@@ -81,5 +81,19 @@
       "terms_required": "Bạn phải đồng ý với Điều khoản & Điều kiện để tiếp tục",
       "complete_code": "Vui lòng nhập đủ mã xác thực 6 chữ số"
     }
+  },
+  "home": {
+    "welcome": "Xin chào!",
+    "hru": "Hôm nay bạn thế nào?",
+    "search_placeholder": "Bạn muốn đến đâu?",
+    "near_by": "Gần đây",
+    "see_all": "Xem tất cả",
+    "services": {
+      "title": "Dịch vụ",
+      "book": "Đặt chuyến",
+      "delivery": "Giao hàng",
+      "pickup": "Nhận hàng",
+      "payment": "Thanh toán"
+    }
   }
 }

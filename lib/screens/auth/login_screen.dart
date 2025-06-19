@@ -6,13 +6,11 @@ import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/theme_provider.dart';
+import 'package:zippy/providers/auth_provider.dart';
 import 'package:zippy/screens/auth/signup_screen.dart';
 import 'package:zippy/screens/auth/forgot_password_screen.dart';
 import 'package:zippy/screens/auth/verify_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 
 class LoginScreen extends StatefulWidget {
@@ -80,20 +78,49 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () async {
               Navigator.of(ctx).pop(); // Close dialog first
 
-              // Send resend OTP request before navigating
+              // Send resend OTP request using AuthProvider
               final loginValue = _emailOrUsernameController.text.trim();
               try {
-                final resendUri = Uri.parse(
-                  '${dotenv.env['BACKEND_API_ENDPOINT']}/auth/resend-otp',
+                final authProvider = Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
                 );
-                await http.get(
-                  resendUri.replace(
-                    queryParameters: {'credential': loginValue},
-                  ),
-                  headers: {'Content-Type': 'application/json'},
+                final result = await authProvider.resendOTP(
+                  credential: loginValue,
                 );
+
+                if (result.isSuccess) {
+                  // Show success message if needed
+                  if (mounted && result.message != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result.message!),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } else {
+                  // Show error message if resend failed
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          result.errorMessage ?? 'Failed to resend OTP',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               } catch (e) {
-                print('Resend OTP error: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Resend OTP error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
 
               // Navigate to verify screen
@@ -115,60 +142,33 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
     setState(() {
       _isLoading = true;
     });
-    final uri = Uri.parse('${dotenv.env['BACKEND_API_ENDPOINT']}/auth/login');
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final loginValue = _emailOrUsernameController.text.trim();
-    final isEmail = RegExp(
-      r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
-    ).hasMatch(loginValue);
-
-    final body = jsonEncode({
-      if (isEmail) 'email': loginValue else 'username': loginValue,
-      'password': _passwordController.text,
-    });
 
     try {
-      final resp = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
+      final result = await authProvider.login(
+        credential: loginValue,
+        password: _passwordController.text,
       );
-      if (resp.statusCode == 200) {
+
+      if (!mounted) return;
+
+      if (result.isSuccess) {
         // Navigate to home on success
-        if (!mounted) {
-          return;
-        }
         Navigator.of(context).pushReplacementNamed('/home');
-      } else if (resp.statusCode == 500) {
-        // Handle server errors
-        final msg = jsonDecode(resp.body)['message'] ?? tr('auth.error_server');
-        if (mounted) {
-          _showErrorDialog(msg);
-        }
-      } else if (resp.statusCode == 403) {
-        // Handle forbidden errors - account not verified
-        final msg =
-            jsonDecode(resp.body)['message'] ?? tr('auth.error_not_verified');
-        if (mounted) {
-          // Show dialog and navigate after user clicks OK
-          _showVerificationDialog(msg);
-        }
-      } else if (resp.statusCode == 401) {
-        // Handle unauthorized errors - invalid credentials
-        final msg =
-            jsonDecode(resp.body)['message'] ??
-            tr('auth.error_invalid_credentials');
-        if (mounted) {
-          _showErrorDialog(msg);
-        }
+      } else if (result.isVerificationError) {
+        // Handle account not verified
+        _showVerificationDialog(
+          result.errorMessage ?? tr('auth.error_not_verified'),
+        );
       } else {
-        final msg = jsonDecode(resp.body)['message'] ?? tr('auth.login_failed');
-        if (mounted) {
-          _showErrorDialog(msg);
-        }
+        // Handle other errors
+        _showErrorDialog(result.errorMessage ?? tr('auth.login_failed'));
       }
     } on SocketException {
       if (mounted) {
@@ -179,9 +179,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _showErrorDialog(e.toString());
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

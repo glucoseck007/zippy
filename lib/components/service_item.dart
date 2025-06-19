@@ -1,0 +1,68 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import 'package:zippy/design/app_typography.dart';
+import '../design/app_colors.dart';
+import '../providers/theme_provider.dart';
+
+class ServiceItem extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  final IconData? icon;
+  final Color? backgroundColor;
+  final Color? iconColor;
+  final Color? textColor;
+
+  const ServiceItem({
+    super.key,
+    required this.text,
+    required this.onTap,
+    this.icon,
+    this.backgroundColor,
+    this.iconColor,
+    this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color:
+                backgroundColor ??
+                (isDarkMode ? AppColors.dmCardColor : Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon ??
+                    LucideIcons
+                        .package, // Use provided icon or fallback to package icon
+                color:
+                    iconColor ??
+                    (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                text,
+                style:
+                    (isDarkMode
+                            ? AppTypography.dmSubTitleText
+                            : AppTypography.titleText)
+                        .copyWith(fontSize: 14, color: textColor),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

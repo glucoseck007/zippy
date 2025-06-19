@@ -81,5 +81,19 @@
       "terms_required": "You must agree to the Terms & Conditions to continue",
       "complete_code": "Please enter a complete 6-digit code"
     }
+  },
+  "home": {
+    "welcome": "Welcome!",
+    "hru": "How are you today?",
+    "search_placeholder": "Where you want to go?",
+    "near_by": "Near by",
+    "see_all": "See All",
+    "services": {
+      "title": "Services",
+      "book": "Book",
+      "delivery": "Delivery",
+      "pickup": "Pickup",
+      "payment": "Payment"
+    }
   }
 }
