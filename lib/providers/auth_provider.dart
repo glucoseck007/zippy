@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../models/user.dart';
-import '../models/auth_tokens.dart';
+import '../models/auth/user.dart';
+import '../models/auth/auth_tokens.dart';
 import '../services/auth_service.dart';
 import '../services/token_service.dart';
 

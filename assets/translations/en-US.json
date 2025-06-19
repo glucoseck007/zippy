@@ -95,5 +95,9 @@
       "pickup": "Pickup",
       "payment": "Payment"
     }
+  },
+  "booking": {
+    "title": "Booking",
+    "subtitle": "Book your service"
   }
 }

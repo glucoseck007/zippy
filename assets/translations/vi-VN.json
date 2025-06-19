@@ -95,5 +95,9 @@
       "pickup": "Nhận hàng",
       "payment": "Thanh toán"
     }
+  },
+  "booking": {
+    "title": "Đặt chuyến",
+    "subtitle": "Đặt dịch vụ của bạn"
   }
 }

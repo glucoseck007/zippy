@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:zippy/constants/screen_size.dart';
-import 'package:zippy/models/location.dart';
+import 'package:zippy/models/ui/location.dart';
+import 'package:zippy/screens/booking/booking_screen.dart';
+import 'package:zippy/screens/payment/payment_screen.dart';
+import 'package:zippy/screens/pickup/pickup_screen.dart';
+import 'package:zippy/utils/navigation_manager.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../design/app_typography.dart';
@@ -19,33 +23,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<ServiceItem> services = [
-    ServiceItem(
-      text: tr('home.services.book'),
-      onTap: () {},
-      icon: LucideIcons.truck,
-      backgroundColor: Color(0xff9ACBD0),
-      iconColor: Color(0xfffF2EFE7),
-      textColor: Color(0xfffF2EFE7),
-    ),
-    ServiceItem(
-      text: tr('home.services.pickup'),
-      onTap: () {},
-      icon: LucideIcons.package,
-      backgroundColor: Color(0xff48A6A7),
-      iconColor: Color(0xfffF2EFE7),
-      textColor: Color(0xfffF2EFE7),
-    ),
-    ServiceItem(
-      text: tr('home.services.payment'),
-      onTap: () {},
-      icon: LucideIcons.creditCard,
-      backgroundColor: Color(0xff006A71),
-      iconColor: Color(0xfffF2EFE7),
-      textColor: Color(0xfffF2EFE7),
-    ),
-  ];
-
   final List<Location> locations = [
     Location(name: 'Rose Garden', estimatedTime: 20),
     Location(name: 'Tasty Treats', estimatedTime: 20),
@@ -54,6 +31,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<ServiceItem> services = [
+      ServiceItem(
+        text: tr('home.services.book'),
+        onTap: () {
+          NavigationManager.navigateToWithFadeTransition(
+            context,
+            BookingScreen(),
+          );
+        },
+        icon: LucideIcons.truck,
+        backgroundColor: Color(0xff9ACBD0),
+        iconColor: Color(0xfffF2EFE7),
+        textColor: Color(0xfffF2EFE7),
+      ),
+      ServiceItem(
+        text: tr('home.services.pickup'),
+        onTap: () {
+          NavigationManager.navigateToWithFadeTransition(
+            context,
+            const PickupScreen(),
+          );
+        },
+        icon: LucideIcons.package,
+        backgroundColor: Color(0xff48A6A7),
+        iconColor: Color(0xfffF2EFE7),
+        textColor: Color(0xfffF2EFE7),
+      ),
+      ServiceItem(
+        text: tr('home.services.payment'),
+        onTap: () {
+          NavigationManager.navigateToWithFadeTransition(
+            context,
+            const PaymentScreen(),
+          );
+        },
+        icon: LucideIcons.creditCard,
+        backgroundColor: Color(0xff006A71),
+        iconColor: Color(0xfffF2EFE7),
+        textColor: Color(0xfffF2EFE7),
+      ),
+    ];
     final authProvider = Provider.of<AuthProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
