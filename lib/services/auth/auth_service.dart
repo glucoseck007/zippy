@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import '../models/auth/auth_tokens.dart';
-import '../models/auth/user.dart';
+import '../../models/auth/auth_tokens.dart';
+import '../../models/auth/user.dart';
 import 'token_service.dart';
 
 /// Result class for authentication operations

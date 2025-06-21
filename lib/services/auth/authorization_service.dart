@@ -1,5 +1,5 @@
-import '../models/auth/user.dart';
-import '../providers/auth_provider.dart';
+import '../../models/auth/user.dart';
+import '../../providers/auth_provider.dart';
 
 enum Role { admin, user }
 

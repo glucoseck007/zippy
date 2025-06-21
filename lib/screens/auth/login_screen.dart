@@ -200,254 +200,248 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailOrUsernameController.addListener(() => setState(() {}));
     _passwordController.addListener(() => setState(() {}));
 
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: isDarkMode
-            ? AppColors.dmBackgroundColor
-            : AppColors.dmBackgroundColor,
-        body: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Header Section
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: (ScreenSize.height(context) * 0.15),
-                  bottom: (ScreenSize.width(context) * 0.1),
-                ),
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? AppColors.backgroundColor
-                      : AppColors.dmBackgroundColor,
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      tr('auth.login'),
-                      style: isDarkMode
-                          ? AppTypography.heading
-                          : AppTypography.dmHeading,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      tr('auth.login_subtitle'),
-                      style: isDarkMode
-                          ? AppTypography.subTitleText
-                          : AppTypography.dmSubTitleText,
-                    ),
-                  ],
-                ),
+    return Scaffold(
+      backgroundColor: isDarkMode
+          ? AppColors.dmBackgroundColor
+          : AppColors.dmBackgroundColor,
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Header Section
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.only(
+                top: (ScreenSize.height(context) * 0.15),
+                bottom: (ScreenSize.width(context) * 0.1),
               ),
-              // Form Section
-              Expanded(
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
-                    ),
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? AppColors.backgroundColor
+                    : AppColors.dmBackgroundColor,
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    tr('auth.login'),
+                    style: isDarkMode
+                        ? AppTypography.heading
+                        : AppTypography.dmHeading,
                   ),
-                  elevation: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CustomInput(
-                            labelKey: 'auth.input.email_or_username',
-                            hintKey: 'auth.input.email_or_username_hint',
-                            controller: _emailOrUsernameController,
-                            validator: _validateEmailOrUsername,
-                            keyboardType: TextInputType.text,
-                            onChanged: (_) => setState(() {}),
+                  const SizedBox(height: 8),
+                  Text(
+                    tr('auth.login_subtitle'),
+                    style: isDarkMode
+                        ? AppTypography.subTitleText
+                        : AppTypography.dmSubTitleText,
+                  ),
+                ],
+              ),
+            ),
+            // Form Section
+            Expanded(
+              child: Card(
+                margin: EdgeInsets.zero,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomInput(
+                          labelKey: 'auth.input.email_or_username',
+                          hintKey: 'auth.input.email_or_username_hint',
+                          controller: _emailOrUsernameController,
+                          validator: _validateEmailOrUsername,
+                          keyboardType: TextInputType.text,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 16),
+                        CustomInput(
+                          labelKey: 'auth.input.password',
+                          hintKey: 'auth.input.password_hint',
+                          controller: _passwordController,
+                          validator: _validatePassword,
+                          obscureText: !_isPasswordVisible,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
                           ),
-                          const SizedBox(height: 16),
-                          CustomInput(
-                            labelKey: 'auth.input.password',
-                            hintKey: 'auth.input.password_hint',
-                            controller: _passwordController,
-                            validator: _validatePassword,
-                            obscureText: !_isPasswordVisible,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: Colors.grey,
-                              ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 16),
+                        // Remember Me and Forgot Password
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value!;
+                                    });
+                                  },
+                                ),
+                                Text(tr('auth.checkbox.remember_me')),
+                              ],
+                            ),
+                            TextButton(
                               onPressed: () {
-                                setState(() {
-                                  _isPasswordVisible = !_isPasswordVisible;
-                                });
+                                NavigationManager.navigateToWithSlideTransition(
+                                  context,
+                                  const ForgotPasswordScreen(),
+                                );
                               },
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 16),
-                          // Remember Me and Forgot Password
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _rememberMe = value!;
-                                      });
-                                    },
-                                  ),
-                                  Text(tr('auth.checkbox.remember_me')),
-                                ],
+                              child: Text(
+                                tr('auth.button.forgot_password'),
+                                style: TextStyle(color: AppColors.buttonColor),
                               ),
-                              TextButton(
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Login Button
+                        Center(
+                          child: SizedBox(
+                            width: ScreenSize.width(context) * 0.8,
+                            child: ElevatedButton(
+                              onPressed: canLogin ? _handleLogin : null,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(tr('auth.button.login')),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Sign-Up Option
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              tr('auth.createAccount'),
+                              style: isDarkMode
+                                  ? AppTypography.dmBodyText
+                                  : AppTypography.bodyText,
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                NavigationManager.navigateToWithSlideTransition(
+                                  context,
+                                  const SignupScreen(),
+                                );
+                              },
+                              child: Text(
+                                tr('auth.button.signup'),
+                                style: TextStyle(color: AppColors.buttonColor),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Social Login Separator
+                        Center(
+                          child: Text(
+                            tr('auth.or'),
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Social Login Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: const BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.facebook,
+                                  color: Colors.white,
+                                ),
                                 onPressed: () {
-                                  NavigationManager.navigateToWithSlideTransition(
-                                    context,
-                                    const ForgotPasswordScreen(),
-                                  );
+                                  // Handle Facebook login
                                 },
-                                child: Text(
-                                  tr('auth.button.forgot_password'),
-                                  style: TextStyle(
-                                    color: AppColors.buttonColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Login Button
-                          Center(
-                            child: SizedBox(
-                              width: ScreenSize.width(context) * 0.8,
-                              child: ElevatedButton(
-                                onPressed: canLogin ? _handleLogin : null,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                ),
-                                child: _isLoading
-                                    ? SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : Text(tr('auth.button.login')),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Sign-Up Option
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                tr('auth.createAccount'),
-                                style: isDarkMode
-                                    ? AppTypography.dmBodyText
-                                    : AppTypography.bodyText,
+                            const SizedBox(width: 16),
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: const BoxDecoration(
+                                color: Colors.lightBlue,
+                                shape: BoxShape.circle,
                               ),
-                              TextButton(
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.alarm, // Placeholder for Twitter
+                                  color: Colors.white,
+                                ),
                                 onPressed: () {
-                                  NavigationManager.navigateToWithSlideTransition(
-                                    context,
-                                    const SignupScreen(),
-                                  );
+                                  // Handle Twitter login
                                 },
-                                child: Text(
-                                  tr('auth.button.signup'),
-                                  style: TextStyle(
-                                    color: AppColors.buttonColor,
-                                  ),
-                                ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Social Login Separator
-                          Center(
-                            child: Text(
-                              tr('auth.or'),
-                              style: TextStyle(color: Colors.grey[600]),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Social Login Buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: const BoxDecoration(
-                                  color: Colors.blue,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.facebook,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    // Handle Facebook login
-                                  },
-                                ),
+                            const SizedBox(width: 16),
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: const BoxDecoration(
+                                color: Colors.black,
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(width: 16),
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: const BoxDecoration(
-                                  color: Colors.lightBlue,
-                                  shape: BoxShape.circle,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.apple,
+                                  color: Colors.white,
                                 ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.alarm, // Placeholder for Twitter
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    // Handle Twitter login
-                                  },
-                                ),
+                                onPressed: () {
+                                  // Handle Apple login
+                                },
                               ),
-                              const SizedBox(width: 16),
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: const BoxDecoration(
-                                  color: Colors.black,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.apple,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    // Handle Apple login
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

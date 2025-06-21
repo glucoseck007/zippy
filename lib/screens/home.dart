@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/models/ui/location.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
@@ -24,9 +25,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final List<Location> locations = [
-    Location(name: 'Rose Garden', estimatedTime: 20),
-    Location(name: 'Tasty Treats', estimatedTime: 20),
-    Location(name: 'Spice Paradise', estimatedTime: 20),
+    Location(
+      name: 'Tòa Alpha',
+      estimatedTime: 5,
+      position: const LatLng(21.013227, 105.527038),
+    ),
+    Location(
+      name: 'Tòa Beta',
+      estimatedTime: 5,
+      position: const LatLng(21.013858, 105.525462),
+    ),
+    Location(
+      name: 'Tòa Gamma',
+      estimatedTime: 5,
+      position: const LatLng(21.013371, 105.523582),
+    ),
   ];
 
   @override
@@ -35,41 +48,41 @@ class _HomeScreenState extends State<HomeScreen> {
       ServiceItem(
         text: tr('home.services.book'),
         onTap: () {
-          NavigationManager.navigateToWithFadeTransition(
+          NavigationManager.navigateToWithSlideTransition(
             context,
             BookingScreen(),
           );
         },
         icon: LucideIcons.truck,
-        backgroundColor: Color(0xff9ACBD0),
-        iconColor: Color(0xfffF2EFE7),
-        textColor: Color(0xfffF2EFE7),
+        backgroundColor: Color(0xffFA4032),
+        iconColor: Color(0xfffFEF3E2),
+        textColor: Color(0xfffFEF3E2),
       ),
       ServiceItem(
         text: tr('home.services.pickup'),
         onTap: () {
-          NavigationManager.navigateToWithFadeTransition(
+          NavigationManager.navigateToWithSlideTransition(
             context,
             const PickupScreen(),
           );
         },
         icon: LucideIcons.package,
-        backgroundColor: Color(0xff48A6A7),
-        iconColor: Color(0xfffF2EFE7),
-        textColor: Color(0xfffF2EFE7),
+        backgroundColor: Color(0xffFA812F),
+        iconColor: Color(0xfffFEF3E2),
+        textColor: Color(0xfffFEF3E2),
       ),
       ServiceItem(
         text: tr('home.services.payment'),
         onTap: () {
-          NavigationManager.navigateToWithFadeTransition(
+          NavigationManager.navigateToWithSlideTransition(
             context,
             const PaymentScreen(),
           );
         },
         icon: LucideIcons.creditCard,
-        backgroundColor: Color(0xff006A71),
-        iconColor: Color(0xfffF2EFE7),
-        textColor: Color(0xfffF2EFE7),
+        backgroundColor: Color(0xffFAB12F),
+        iconColor: Color(0xfffFEF3E2),
+        textColor: Color(0xfffFEF3E2),
       ),
     ];
     final authProvider = Provider.of<AuthProvider>(context);
@@ -80,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: isDarkMode
           ? AppColors.dmBackgroundColor
-          : Colors.grey.shade100,
+          : AppColors.backgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -246,16 +259,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       name: locations[0].name,
                       deliveryTime: '${locations[0].estimatedTime} min',
                       isFreeDelivery: true,
+                      location: locations[0].position,
                     ),
                     CustomPlaceCard(
                       name: locations[1].name,
                       deliveryTime: '${locations[1].estimatedTime} min',
                       isFreeDelivery: true,
+                      location: locations[1].position,
                     ),
                     CustomPlaceCard(
                       name: locations[2].name,
                       deliveryTime: '${locations[2].estimatedTime} min',
                       isFreeDelivery: true,
+                      location: locations[2].position,
                     ),
                   ],
                 ),

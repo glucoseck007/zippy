@@ -47,5 +47,11 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs access to location when open to select delivery locations.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>This app needs access to location when in the background for delivery tracking.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>This app needs access to location when open and in the background for delivery tracking.</string>
 	</dict>
 </plist>

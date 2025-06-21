@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../services/authorization_service.dart';
+import '../services/auth/authorization_service.dart';
 
 /// Widget that conditionally shows content based on user permissions
 class PermissionGuard extends StatelessWidget {

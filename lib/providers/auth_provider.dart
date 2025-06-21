@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../models/auth/user.dart';
 import '../models/auth/auth_tokens.dart';
-import '../services/auth_service.dart';
-import '../services/token_service.dart';
+import '../services/auth/auth_service.dart';
+import '../services/auth/token_service.dart';
 
 enum AuthState { unknown, authenticated, unauthenticated }
 

@@ -97,7 +97,39 @@
     }
   },
   "booking": {
-    "title": "Booking",
-    "subtitle": "Book your service"
+    "title": "Book Delivery",
+    "subtitle": "Book your service",
+    "step": "Step",
+    "of": "of",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit Order",
+    "product_name": "Product Name",
+    "product_name_hint": "Enter the name of your product",
+    "product_name_required": "Product name is required",
+    "product_info_desc": "Please provide the name of the item you wish to ship. This helps us track your package throughout the delivery process.",
+    "select_box": "Select Cargo Space",
+    "cargo_spaces_desc": "Your car has 2 identical cargo spaces. Please select which one you want to use.",
+    "cargo_space": {
+      "space_1": "Cargo Space 1",
+      "space_2": "Cargo Space 2",
+      "space_3": "Cargo Space 3",
+      "space_4": "Cargo Space 4"
+    },
+    "dimensions": "Dimensions",
+    "select_location": "Select Delivery Location",
+    "selecting_location": "Select a location on the map",
+    "use_current_location": "Use My Current Location",
+    "location_description": "Tap on the map to select your delivery location or use the button to select your current location.",
+    "fetching_location": "Getting your location...",
+    "location_found": "Location found!",
+    "location_not_found": "Could not find your location",
+    "location_error": "Error accessing location",
+    "success_title": "Order Placed!",
+    "success_message": "Your delivery has been booked successfully. You can track your delivery in the Orders section.",
+    "common": {
+      "ok": "OK",
+      "cancel": "Cancel"
+    }
   }
 }

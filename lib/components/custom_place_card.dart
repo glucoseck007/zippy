@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
 import '../design/app_colors.dart';
 import '../design/app_typography.dart';
 import '../providers/theme_provider.dart';
+import './mini_map_widget.dart';
 
 class CustomPlaceCard extends StatelessWidget {
   final String name;
@@ -11,6 +13,8 @@ class CustomPlaceCard extends StatelessWidget {
   final String deliveryTime;
   final bool isFreeDelivery;
   final String? imageUrl; // Optional image URL for restaurant image
+  final LatLng?
+  location; // Optional LatLng for displaying a map instead of an image
 
   const CustomPlaceCard({
     super.key,
@@ -20,6 +24,7 @@ class CustomPlaceCard extends StatelessWidget {
     required this.deliveryTime,
     this.isFreeDelivery = false,
     this.imageUrl,
+    this.location,
   });
 
   @override
@@ -45,23 +50,33 @@ class CustomPlaceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Restaurant image
-          Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: isDarkMode ? AppColors.dmCardColor : AppColors.cardColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-              image: imageUrl != null && imageUrl!.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(imageUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-          ),
+          // Restaurant image or map
+          location != null
+              ? MiniMapWidget(
+                  location: location!,
+                  height: 150,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(15),
+                  ),
+                )
+              : Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? AppColors.dmCardColor
+                        : AppColors.cardColor,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(15),
+                    ),
+                    image: imageUrl != null && imageUrl!.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(imageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                ),
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Column(

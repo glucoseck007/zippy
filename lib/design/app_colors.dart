@@ -2,7 +2,7 @@ import 'dart:ui';
 
 class AppColors {
   // Light mode colors
-  static const backgroundColor = Color(0xFFD1D1E0);
+  static const backgroundColor = Color(0xFFFFFDF6);
   static const buttonColor = Color(0xFFFF7622);
   static const cardColor = Color(0xFF98A8B8);
   static const inputColor = Color(0xFFF0F5FA);
@@ -22,5 +22,4 @@ class AppColors {
   static const dmRejectColor = Color(0xFFEF476F);
   static const dmHeadingColor = Color(0xFFEEEEEE);
   static const dmSelectedColor = Color(0xFFFFB347);
-
 }

@@ -21,10 +21,22 @@ dependencies:
   provider: ^6.1.5
   easy_localization: ^3.0.3
   cupertino_icons: ^1.0.8
-  http: ^0.13.6
+  http: ^1.4.0
   shared_preferences: ^2.3.2
   flutter_secure_storage: ^9.2.2
   lucide_icons: ^0.257.0
+  
+  # Map and location services
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  location: ^5.0.0
+  geocoding: ^2.2.0
+  
+  # AWS Services
+  amazon_cognito_identity_dart_2: ^3.6.0
+  http_auth: ^1.0.2
+  crypto: ^3.0.3
+  convert: ^3.1.1
 
 dev_dependencies:
   flutter_test:
@@ -37,6 +49,8 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/icons/
+    - assets/images/
     - assets/translations/en-US.json
     - assets/translations/vi-VN.json
     - .env

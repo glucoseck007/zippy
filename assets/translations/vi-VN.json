@@ -97,7 +97,39 @@
     }
   },
   "booking": {
-    "title": "Đặt chuyến",
-    "subtitle": "Đặt dịch vụ của bạn"
+    "title": "Đặt Giao Hàng",
+    "subtitle": "Đặt dịch vụ của bạn",
+    "step": "Bước",
+    "of": "trên",
+    "next": "Tiếp theo",
+    "previous": "Trước",
+    "submit": "Đặt hàng",
+    "product_name": "Tên sản phẩm",
+    "product_name_hint": "Nhập tên sản phẩm của bạn",
+    "product_name_required": "Tên sản phẩm là bắt buộc",
+    "product_info_desc": "Vui lòng cung cấp tên của món hàng bạn muốn gửi. Điều này giúp chúng tôi theo dõi gói hàng của bạn trong suốt quá trình giao hàng.",
+    "select_box": "Chọn khoang chứa hàng",
+    "cargo_spaces_desc": "Xe của bạn có 2 khoang chứa hàng giống nhau. Vui lòng chọn khoang bạn muốn sử dụng.",
+    "cargo_space": {
+      "space_1": "Khoang 1",
+      "space_2": "Khoang 2",
+      "space_3": "Khoang 3",
+      "space_4": "Khoang 4"
+    },
+    "dimensions": "Kích thước",
+    "select_location": "Chọn địa điểm giao hàng",
+    "selecting_location": "Chọn một địa điểm trên bản đồ",
+    "use_current_location": "Sử dụng vị trí hiện tại",
+    "location_description": "Chạm vào bản đồ để chọn vị trí giao hàng hoặc sử dụng nút để chọn vị trí hiện tại của bạn.",
+    "fetching_location": "Đang tìm vị trí của bạn...",
+    "location_found": "Đã tìm thấy vị trí!",
+    "location_not_found": "Không thể tìm thấy vị trí của bạn",
+    "location_error": "Lỗi khi truy cập vị trí",
+    "success_title": "Đã đặt hàng!",
+    "success_message": "Đơn hàng của bạn đã được đặt thành công. Bạn có thể theo dõi giao hàng trong mục Đơn hàng.",
+    "common": {
+      "ok": "OK",
+      "cancel": "Hủy"
+    }
   }
 }

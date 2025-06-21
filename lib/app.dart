@@ -5,14 +5,13 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:zippy/screens/auth/login_screen.dart';
 import 'package:zippy/screens/home.dart';
-import 'package:zippy/screens/profile_screen.dart';
-import 'package:zippy/screens/admin_panel_screen.dart';
-import 'package:zippy/widgets/auth_guard.dart';
-import 'package:zippy/widgets/dev_auth_switcher.dart';
-
 import 'design/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
+
+// Global key for accessing ScaffoldMessenger throughout the app
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -60,6 +59,16 @@ class _MyAppState extends State<MyApp> {
               lastName: 'Test',
             );
 
+            // Show developer notification
+            rootScaffoldMessengerKey.currentState?.showSnackBar(
+              SnackBar(
+                content: const Text('⚠️ DEBUG MODE: Auto-login enabled'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+
             // Log to console only - UI notification will be handled in MaterialApp builder
             debugPrint('⚠️ DEVELOPMENT MODE: Using mock authentication');
           }
@@ -81,7 +90,8 @@ class _MyAppState extends State<MyApp> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: 'Zippy Delivery App',
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
+          title: 'Zippy Mobile App',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
@@ -90,70 +100,16 @@ class _MyAppState extends State<MyApp> {
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
-            EasyLocalization.of(context)!.delegate,
+            ...context
+                .localizationDelegates, // Safe way to access EasyLocalization delegates
           ],
           supportedLocales: context.supportedLocales,
           locale: context.locale,
-          navigatorObservers: [AuthRouteObserver()],
-          // Use builder to inject dev auth switcher inside the MaterialApp
-          builder: (context, child) {
-            // Show dev mode notification after MaterialApp is fully built
-            if (kDebugMode) {
-              // Using a local variable to maintain class reference
-              final bool showMockNotification = _useMockAuth;
-              final State appState = this;
-
-              // Delay notification to ensure everything is fully built
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // Only show notification if still mounted and using mock auth
-                if (showMockNotification && appState.mounted) {
-                  try {
-                    // Now it's safe to use ScaffoldMessenger
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          '⚠️ DEVELOPMENT MODE: Using mock authentication',
-                        ),
-                        backgroundColor: Colors.orange,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  } catch (e) {
-                    debugPrint('Unable to show auth notification: $e');
-                  }
-                }
-              });
-            }
-
-            // Wrap with Directionality for proper text direction
-            // Wrap with Overlay for tooltip support
-            // Then wrap with a Stack to properly position the DevAuthSwitcher
-            return Directionality(
-              textDirection: Directionality.of(context),
-              child: Overlay(
-                initialEntries: [
-                  OverlayEntry(
-                    builder: (context) {
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          child ?? const SizedBox.shrink(),
-                          // Development only auth switcher (only visible in debug mode)
-                          if (kDebugMode) const DevAuthSwitcher(),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-          home: const AppInitializer(),
+          // In debug mode with mock auth enabled, start directly at home screen
+          initialRoute: (kDebugMode && _useMockAuth) ? '/home' : '/',
           routes: {
-            '/login': (context) => const LoginScreen(),
-            '/home': (context) => const AuthGuard(child: HomeScreen()),
-            '/profile': (context) => const AuthGuard(child: ProfileScreen()),
-            '/admin': (context) => const AuthGuard(child: AdminPanelScreen()),
+            '/': (context) => const LoginScreen(),
+            '/home': (context) => const HomeScreen(),
           },
         );
       },
@@ -187,6 +143,11 @@ class _AppInitializerState extends State<AppInitializer> {
 
   @override
   Widget build(BuildContext context) {
+    // In debug mode with _useMockAuth enabled, skip auth checks entirely
+    if (kDebugMode && _MyAppState._useMockAuth) {
+      return const HomeScreen();
+    }
+
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         switch (authProvider.authState) {
