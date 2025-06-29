@@ -57,5 +57,6 @@ class User {
     };
   }
 
-  String get fullName => '$firstName $lastName';
+  // Helper getter to get full name
+  String get fullName => '$firstName $lastName'.trim();
 }

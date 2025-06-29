@@ -90,10 +90,50 @@
     "see_all": "See All",
     "services": {
       "title": "Services",
-      "book": "Book",
+      "book": "Booking",
       "delivery": "Delivery",
       "pickup": "Pickup",
       "payment": "Payment"
+    }
+  },
+  "drawer": {
+    "account": "Account",
+    "language": "Language",
+    "light_mode": "Light Mode",
+    "dark_mode": "Dark Mode",
+    "logout": "Logout",
+    "language_changed": "Language changed to {0}",
+    "dark_mode_enabled": "Dark mode enabled",
+    "light_mode_enabled": "Light mode enabled"
+  },
+  "profile": {
+    "personal_info": "Personal Information",
+    "address_info": "Address Information",
+    "contact_info": "Contact Information",
+    "full_name": "Full Name",
+    "username": "Username",
+    "email": "Email",
+    "phone": "Phone Number",
+    "address": "Street Address",
+    "ward": "Ward",
+    "district": "District",
+    "province": "Province",
+    "city": "City",
+    "save_address": "Save Profile Information",
+    "address_required": "Please enter your street address",
+    "ward_required": "Please enter ward",
+    "district_required": "Please enter district",
+    "province_required": "Please enter province",
+    "city_required": "Please enter city",
+    "phone_required": "Please enter your phone number",
+    "address_updated": "Profile information updated successfully!",
+    "default": {
+      "address": "No. 5, Alley 66, Ngo Dinh Street, Hamlet 7, Village 5, Song Phuong Commune",
+      "ward": "Song Phuong",
+      "district": "Hoai Duc",
+      "province": "Hanoi",
+      "city": "Hanoi City",
+      "phone": "+84 123 456 789"
     }
   },
   "booking": {

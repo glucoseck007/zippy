@@ -1,4 +1,4 @@
-import '../../models/auth/user.dart';
+import '../../models/entity/auth/user.dart';
 import '../../providers/auth_provider.dart';
 
 enum Role { admin, user }

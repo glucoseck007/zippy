@@ -33,6 +33,8 @@ class ServiceItem extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Container(
+          height: 79.2,
+          width: 112.3,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color:

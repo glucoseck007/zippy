@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import '../../models/auth/auth_tokens.dart';
-import '../../models/auth/user.dart';
+import '../../models/entity/auth/auth_tokens.dart';
+import '../../models/entity/auth/user.dart';
+import '../../models/result/auth/auth_result.dart' as ar;
+import '../../models/result/result_template.dart' as rt;
 import 'token_service.dart';
 
 /// Result class for authentication operations
@@ -62,71 +64,37 @@ class AuthException implements Exception {
 class AuthService {
   static final String _baseUrl = dotenv.env['BACKEND_API_ENDPOINT'] ?? '';
 
-  /// Login with email/username and password
   static Future<AuthResult> login({
     required String credential, // email or username
     required String password,
   }) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/login');
-
       // Determine if credential is email or username
       final isEmail = RegExp(
         r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
       ).hasMatch(credential);
 
-      final body = jsonEncode({
+      final requestBody = {
         if (isEmail) 'email': credential else 'username': credential,
         'password': password,
-      });
+      };
 
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
+      // Use our apiRequest helper method
+      final result = await apiRequest(
+        method: 'POST',
+        endpoint: '/auth/login',
+        body: requestBody,
+        requiresAuth: false,
+        isAuthRequest: true,
       );
 
-      final responseData = jsonDecode(response.body);
-
-      switch (response.statusCode) {
-        case 200:
-          // Success
-          final tokens = AuthTokens.fromJson(
-            responseData['tokens'] ?? responseData,
-          );
-          final user = User.fromJson(responseData['user'] ?? responseData);
-
-          // Save tokens and user data
-          await TokenService.saveTokens(tokens);
-          await TokenService.saveUser(user);
-
-          return AuthResult.success(user: user, tokens: tokens);
-
-        case 401:
-          return AuthResult.error(
-            responseData['message'] ?? 'Invalid credentials',
-          );
-
-        case 403:
-          return AuthResult.error(
-            responseData['message'] ?? 'Account not verified',
-            isVerificationError: true,
-          );
-
-        case 500:
-          return AuthResult.error(responseData['message'] ?? 'Server error');
-
-        default:
-          return AuthResult.error(responseData['message'] ?? 'Login failed');
-      }
-    } on SocketException {
-      return AuthResult.error('No internet connection');
+      return result;
     } catch (e) {
-      return AuthResult.error('An unexpected error occurred: $e');
+      return AuthResult.error('Login failed: $e');
     }
   }
 
-  /// Refresh access token using refresh token
+  /// Refresh token using the new API helpers
   static Future<AuthResult> refreshToken() async {
     try {
       final refreshToken = await TokenService.getValidRefreshToken();
@@ -134,34 +102,24 @@ class AuthService {
         return AuthResult.error('No valid refresh token available');
       }
 
-      final uri = Uri.parse('$_baseUrl/auth/refresh');
-      final response = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $refreshToken',
-        },
+      // Use our apiRequest helper method
+      final result = await apiRequest(
+        method: 'POST',
+        endpoint: '/auth/refresh-token',
+        headers: {'Authorization': 'Bearer $refreshToken'},
+        requiresAuth: false, // We're providing the token manually
+        isAuthRequest: true,
       );
 
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        final tokens = AuthTokens.fromJson(
-          responseData['tokens'] ?? responseData,
-        );
-        await TokenService.saveTokens(tokens);
-
-        // Get existing user data
-        final user = await TokenService.getUser();
-
-        return AuthResult.success(user: user, tokens: tokens);
+      // If successful, update stored tokens
+      if (result.isSuccess && result.tokens != null) {
+        await TokenService.saveTokens(result.tokens!);
       } else {
-        // Refresh failed, clear all tokens
+        // Clear tokens if refresh failed
         await TokenService.clearTokens();
-        return AuthResult.error(
-          responseData['message'] ?? 'Token refresh failed',
-        );
       }
+
+      return result;
     } catch (e) {
       await TokenService.clearTokens();
       return AuthResult.error('Token refresh failed: $e');
@@ -173,28 +131,16 @@ class AuthService {
     required String credential, // email or username
   }) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/resend-otp');
-
-      final response = await http.get(
-        uri.replace(queryParameters: {'credential': credential}),
-        headers: {'Content-Type': 'application/json'},
+      // Use the apiRequest helper method instead of direct HTTP calls
+      return await apiRequest(
+        method: 'GET',
+        endpoint: '/auth/resend-otp',
+        // Pass the query parameter
+        headers: {
+          'X-Query-Credential': credential,
+        }, // We'll handle this in _executeHttpRequest
+        requiresAuth: false,
       );
-
-      final responseData = response.body.isNotEmpty
-          ? jsonDecode(response.body)
-          : <String, dynamic>{};
-
-      if (response.statusCode == 200) {
-        return AuthResult.success(
-          message: responseData['message'] ?? 'OTP sent successfully',
-        );
-      } else {
-        return AuthResult.error(
-          responseData['message'] ?? 'Failed to resend OTP',
-        );
-      }
-    } on SocketException {
-      return AuthResult.error('No internet connection');
     } catch (e) {
       return AuthResult.error('Failed to resend OTP: $e');
     }
@@ -212,9 +158,8 @@ class AuthService {
     required bool termsAccepted,
   }) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/register');
-
-      final body = jsonEncode({
+      // Prepare request body
+      final requestBody = {
         'username': username,
         'firstName': firstName,
         'lastName': lastName,
@@ -223,43 +168,15 @@ class AuthService {
         'password': password,
         'confirmPassword': confirmPassword,
         'termsAccepted': termsAccepted,
-      });
+      };
 
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
+      // Use our apiRequest helper method
+      return await apiRequest(
+        method: 'POST',
+        endpoint: '/auth/register',
+        body: requestBody,
+        requiresAuth: false,
       );
-
-      final responseData = response.body.isNotEmpty
-          ? jsonDecode(response.body)
-          : <String, dynamic>{};
-
-      switch (response.statusCode) {
-        case 201:
-          return AuthResult.success(
-            message: responseData['message'] ?? 'Registration successful',
-          );
-        case 403:
-          return AuthResult.error(
-            responseData['message'] ?? 'Account created but needs verification',
-            isVerificationError: true,
-          );
-        case 401:
-          return AuthResult.error(
-            responseData['message'] ?? 'Email already exists',
-          );
-        case 500:
-          return AuthResult.error(
-            responseData['message'] ?? 'Server error occurred',
-          );
-        default:
-          return AuthResult.error(
-            responseData['message'] ?? 'Registration failed',
-          );
-      }
-    } on SocketException {
-      return AuthResult.error('No internet connection');
     } catch (e) {
       return AuthResult.error('Registration failed: $e');
     }
@@ -271,31 +188,16 @@ class AuthService {
     required String otp,
   }) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/verify-otp');
+      // Prepare request body
+      final requestBody = {'credential': credential, 'otp': otp};
 
-      final body = jsonEncode({'credential': credential, 'otp': otp});
-
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
+      // Use our apiRequest helper method
+      return await apiRequest(
+        method: 'POST',
+        endpoint: '/auth/verify-otp',
+        body: requestBody,
+        requiresAuth: false,
       );
-
-      final responseData = response.body.isNotEmpty
-          ? jsonDecode(response.body)
-          : <String, dynamic>{};
-
-      if (response.statusCode == 200) {
-        return AuthResult.success(
-          message: responseData['message'] ?? 'Verification successful',
-        );
-      } else {
-        return AuthResult.error(
-          responseData['message'] ?? 'Verification failed',
-        );
-      }
-    } on SocketException {
-      return AuthResult.error('No internet connection');
     } catch (e) {
       return AuthResult.error('Verification failed: $e');
     }
@@ -304,31 +206,16 @@ class AuthService {
   /// Send forgot password email
   static Future<AuthResult> forgotPassword({required String email}) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/forgot-password');
+      // Prepare request body
+      final requestBody = {'email': email};
 
-      final body = jsonEncode({'email': email});
-
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
+      // Use our apiRequest helper method
+      return await apiRequest(
+        method: 'POST',
+        endpoint: '/auth/forgot-password',
+        body: requestBody,
+        requiresAuth: false,
       );
-
-      final responseData = response.body.isNotEmpty
-          ? jsonDecode(response.body)
-          : <String, dynamic>{};
-
-      if (response.statusCode == 200) {
-        return AuthResult.success(
-          message: responseData['message'] ?? 'Password reset email sent',
-        );
-      } else {
-        return AuthResult.error(
-          responseData['message'] ?? 'Failed to send reset email',
-        );
-      }
-    } on SocketException {
-      return AuthResult.error('No internet connection');
     } catch (e) {
       return AuthResult.error('Failed to send reset email: $e');
     }
@@ -357,45 +244,27 @@ class AuthService {
     }
 
     final uri = Uri.parse('$_baseUrl$endpoint');
-    final headers = {
+    var headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $accessToken',
       ...?additionalHeaders,
     };
 
-    http.Response response;
-
-    switch (method.toUpperCase()) {
-      case 'GET':
-        response = await http.get(uri, headers: headers);
-        break;
-      case 'POST':
-        response = await http.post(
-          uri,
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        );
-        break;
-      case 'PUT':
-        response = await http.put(
-          uri,
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        );
-        break;
-      case 'DELETE':
-        response = await http.delete(uri, headers: headers);
-        break;
-      case 'PATCH':
-        response = await http.patch(
-          uri,
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        );
-        break;
-      default:
-        throw ArgumentError('Unsupported HTTP method: $method');
+    // Extract query parameters if they exist in the headers
+    Map<String, dynamic>? queryParams;
+    if (headers.containsKey('X-Query-Credential')) {
+      queryParams = {'credential': headers['X-Query-Credential']};
+      headers = Map.from(headers)..remove('X-Query-Credential');
     }
+
+    // Execute the HTTP request using our helper method
+    http.Response response = await _executeHttpRequest(
+      method: method,
+      uri: uri,
+      headers: headers,
+      body: body,
+      queryParams: queryParams,
+    );
 
     // If unauthorized, try to refresh token once
     if (response.statusCode == 401) {
@@ -407,35 +276,14 @@ class AuthService {
           'Authorization': 'Bearer ${refreshResult.tokens!.accessToken}',
         };
 
-        switch (method.toUpperCase()) {
-          case 'GET':
-            response = await http.get(uri, headers: newHeaders);
-            break;
-          case 'POST':
-            response = await http.post(
-              uri,
-              headers: newHeaders,
-              body: body != null ? jsonEncode(body) : null,
-            );
-            break;
-          case 'PUT':
-            response = await http.put(
-              uri,
-              headers: newHeaders,
-              body: body != null ? jsonEncode(body) : null,
-            );
-            break;
-          case 'DELETE':
-            response = await http.delete(uri, headers: newHeaders);
-            break;
-          case 'PATCH':
-            response = await http.patch(
-              uri,
-              headers: newHeaders,
-              body: body != null ? jsonEncode(body) : null,
-            );
-            break;
-        }
+        // Use the helper method again for the retry with new token
+        response = await _executeHttpRequest(
+          method: method,
+          uri: uri,
+          headers: newHeaders,
+          body: body,
+          queryParams: queryParams,
+        );
       }
     }
 
@@ -535,5 +383,330 @@ class AuthService {
       tokens: mockTokens,
       message: 'Development mock authentication successful',
     );
+  }
+
+  /// Process API response using the new result templates
+  static Future<AuthResult> processAuthResponse(http.Response response) async {
+    try {
+      final responseData = jsonDecode(response.body);
+
+      // Create a result template from the response
+      final resultTemplate = rt.AuthResult.fromJson(responseData);
+
+      if (response.statusCode == 200 && resultTemplate.success) {
+        // If we have tokens in the data object
+        if (resultTemplate.data.containsKey('accessToken') &&
+            resultTemplate.data.containsKey('refreshToken')) {
+          // Extract using the auth_result.dart model
+          final authResultTokens = ar.AuthResult(
+            accessToken: resultTemplate.data['accessToken'],
+            refreshToken: resultTemplate.data['refreshToken'],
+          );
+
+          // Convert to our AuthTokens model
+          final tokens = AuthTokens(
+            accessToken: authResultTokens.accessToken,
+            refreshToken: authResultTokens.refreshToken,
+            accessTokenExpiry: DateTime.now().add(const Duration(hours: 1)),
+            refreshTokenExpiry: DateTime.now().add(const Duration(days: 7)),
+          );
+
+          // Check if verification is required
+          final verificationRequired =
+              resultTemplate.data['verificationRequired'] == true;
+          if (verificationRequired) {
+            return AuthResult.error(
+              'Account verification required',
+              isVerificationError: true,
+            );
+          }
+
+          // Fetch user profile in a separate call or from data if available
+          User? user;
+          if (resultTemplate.data.containsKey('user')) {
+            user = User.fromJson(resultTemplate.data['user']);
+          } else {
+            user = await _fetchUserProfile(tokens.accessToken);
+          }
+
+          // Save tokens and user data
+          await TokenService.saveTokens(tokens);
+          if (user != null) {
+            await TokenService.saveUser(user);
+          }
+
+          return AuthResult.success(
+            user: user,
+            tokens: tokens,
+            message: resultTemplate.message,
+          );
+        }
+      }
+
+      // Handle error cases
+      return AuthResult.error(resultTemplate.message);
+    } catch (e) {
+      debugPrint('Error processing auth response: $e');
+      return AuthResult.error('Failed to process authentication response');
+    }
+  }
+
+  /// Fetch user profile using access token
+  static Future<User?> _fetchUserProfile(String accessToken) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/auth/profile');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        // Check if response follows the new format
+        if (responseData['success'] == true && responseData['data'] != null) {
+          // Extract user data from the 'data' object
+          final userData = responseData['data'];
+          return User.fromJson(userData);
+        } else {
+          // Try to parse the direct response or extract from 'user' field
+          return User.fromJson(responseData['user'] ?? responseData);
+        }
+      }
+
+      debugPrint('Failed to fetch user profile: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      return null;
+    }
+  }
+
+  /// Helper method to execute HTTP requests with different methods
+  static Future<http.Response> _executeHttpRequest({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    Map<String, dynamic>? body,
+    Map<String, dynamic>? queryParams,
+  }) async {
+    // Handle custom headers that might contain query parameters
+    Map<String, String> requestHeaders = {...headers};
+    Map<String, dynamic> queryParameters = {...?queryParams};
+
+    // Check for special header X-Query-Credential which we'll convert to a query parameter
+    if (requestHeaders.containsKey('X-Query-Credential')) {
+      queryParameters['credential'] = requestHeaders['X-Query-Credential'];
+      requestHeaders.remove('X-Query-Credential');
+    }
+
+    // Apply query parameters if provided
+    Uri requestUri = queryParameters.isNotEmpty
+        ? uri.replace(
+            queryParameters: queryParameters.map(
+              (key, value) => MapEntry(key, value.toString()),
+            ),
+          )
+        : uri;
+
+    switch (method.toUpperCase()) {
+      case 'GET':
+        return await http.get(requestUri, headers: requestHeaders);
+
+      case 'POST':
+        return await http.post(
+          requestUri,
+          headers: requestHeaders,
+          body: body != null ? jsonEncode(body) : null,
+        );
+
+      case 'PUT':
+        return await http.put(
+          requestUri,
+          headers: requestHeaders,
+          body: body != null ? jsonEncode(body) : null,
+        );
+
+      case 'DELETE':
+        return await http.delete(requestUri, headers: requestHeaders);
+
+      case 'PATCH':
+        return await http.patch(
+          requestUri,
+          headers: requestHeaders,
+          body: body != null ? jsonEncode(body) : null,
+        );
+
+      default:
+        throw ArgumentError('Unsupported HTTP method: $method');
+    }
+  }
+
+  /// Helper method to handle HTTP status codes and return appropriate AuthResult
+  static Future<AuthResult> handleHttpResponse(
+    http.Response response, {
+    bool isAuthentication = false,
+  }) async {
+    final responseData = jsonDecode(response.body);
+
+    // Check if this is the new API format with success/message/data structure
+    if (isAuthentication &&
+        response.statusCode == 200 &&
+        responseData['success'] != null &&
+        responseData['data'] != null) {
+      return processAuthResponse(response);
+    }
+
+    switch (response.statusCode) {
+      case 200:
+      case 201:
+        // Try to extract user data if available in the response
+        User? user;
+
+        // Check for user data in different potential locations
+        if (responseData['data'] != null && responseData['data'] is Map) {
+          // If it has user data inside data object
+          if (responseData['data']['user'] != null) {
+            user = User.fromJson(responseData['data']['user']);
+          }
+          // If the data object itself is the user
+          else if (responseData['data'].containsKey('username') ||
+              responseData['data'].containsKey('email')) {
+            user = User.fromJson(responseData['data']);
+          }
+        }
+        // If user data is directly in the response
+        else if (responseData['user'] != null) {
+          user = User.fromJson(responseData['user']);
+        }
+        // If the response itself might be the user object
+        else if (responseData.containsKey('username') ||
+            responseData.containsKey('email')) {
+          user = User.fromJson(responseData);
+        }
+
+        return AuthResult.success(
+          message: responseData['message'] ?? 'Operation successful',
+          user: user,
+        );
+
+      case 400:
+        return AuthResult.error(responseData['message'] ?? 'Bad request');
+
+      case 401:
+        return AuthResult.error(
+          responseData['message'] ?? 'Unauthorized access',
+        );
+
+      case 403:
+        return AuthResult.error(
+          responseData['message'] ?? 'Access forbidden',
+          isVerificationError: responseData['verificationRequired'] == true,
+        );
+
+      case 404:
+        return AuthResult.error(
+          responseData['message'] ?? 'Resource not found',
+        );
+
+      case 500:
+      case 502:
+      case 503:
+        return AuthResult.error(
+          responseData['message'] ?? 'Server error occurred',
+        );
+
+      default:
+        return AuthResult.error(
+          responseData['message'] ??
+              'Operation failed with status: ${response.statusCode}',
+        );
+    }
+  }
+
+  /// General-purpose method for making API requests with proper error handling
+  static Future<AuthResult> apiRequest({
+    required String method,
+    required String endpoint,
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+    bool requiresAuth = true,
+    bool isAuthRequest = false,
+  }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$endpoint');
+
+      Map<String, String> requestHeaders = {
+        'Content-Type': 'application/json',
+        ...?headers,
+      };
+
+      // Add auth header if required
+      if (requiresAuth) {
+        final accessToken = await TokenService.getValidAccessToken();
+        if (accessToken == null) {
+          // Try to refresh token
+          final refreshResult = await refreshToken();
+          if (!refreshResult.isSuccess) {
+            return AuthResult.error('Authentication required');
+          }
+          requestHeaders['Authorization'] =
+              'Bearer ${refreshResult.tokens!.accessToken}';
+        } else {
+          requestHeaders['Authorization'] = 'Bearer $accessToken';
+        }
+      }
+
+      // Extract query parameters if they exist in the headers
+      Map<String, dynamic>? queryParams;
+      if (requestHeaders.containsKey('X-Query-Credential')) {
+        queryParams = {'credential': requestHeaders['X-Query-Credential']};
+      }
+
+      // Execute the HTTP request
+      final response = await _executeHttpRequest(
+        method: method,
+        uri: uri,
+        headers: requestHeaders,
+        body: body,
+        queryParams: queryParams,
+      );
+
+      // Handle 401 with token refresh if authenticated request
+      if (requiresAuth && response.statusCode == 401) {
+        final refreshResult = await refreshToken();
+        if (refreshResult.isSuccess) {
+          requestHeaders['Authorization'] =
+              'Bearer ${refreshResult.tokens!.accessToken}';
+
+          // Retry the request
+          final retryResponse = await _executeHttpRequest(
+            method: method,
+            uri: uri,
+            headers: requestHeaders,
+            body: body,
+            queryParams: queryParams,
+          );
+
+          return handleHttpResponse(
+            retryResponse,
+            isAuthentication: isAuthRequest,
+          );
+        }
+        // If refresh fails, return unauthorized error
+        return AuthResult.error('Session expired. Please log in again.');
+      }
+
+      // Handle the response
+      return handleHttpResponse(response, isAuthentication: isAuthRequest);
+    } on SocketException {
+      return AuthResult.error('No internet connection');
+    } catch (e) {
+      return AuthResult.error('Request failed: $e');
+    }
   }
 }

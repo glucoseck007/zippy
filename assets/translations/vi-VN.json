@@ -96,6 +96,46 @@
       "payment": "Thanh toán"
     }
   },
+  "drawer": {
+    "account": "Tài khoản",
+    "language": "Ngôn ngữ",
+    "light_mode": "Chế độ sáng",
+    "dark_mode": "Chế độ tối",
+    "logout": "Đăng xuất",
+    "language_changed": "Đã chuyển sang ngôn ngữ {0}",
+    "dark_mode_enabled": "Đã bật chế độ tối",
+    "light_mode_enabled": "Đã bật chế độ sáng"
+  },
+  "profile": {
+    "personal_info": "Thông tin cá nhân",
+    "address_info": "Thông tin địa chỉ",
+    "contact_info": "Thông tin liên hệ",
+    "full_name": "Họ và tên",
+    "username": "Tên đăng nhập",
+    "email": "Email",
+    "phone": "Số điện thoại",
+    "address": "Địa chỉ",
+    "ward": "Phường/Xã",
+    "district": "Quận/Huyện",
+    "province": "Tỉnh/Thành phố",
+    "city": "Thành phố",
+    "save_address": "Lưu thông tin",
+    "address_required": "Vui lòng nhập địa chỉ",
+    "ward_required": "Vui lòng nhập phường/xã",
+    "district_required": "Vui lòng nhập quận/huyện",
+    "province_required": "Vui lòng nhập tỉnh/thành phố",
+    "city_required": "Vui lòng nhập thành phố",
+    "phone_required": "Vui lòng nhập số điện thoại",
+    "address_updated": "Đã cập nhật thông tin thành công!",
+    "default": {
+      "address": "Số 5, Ngõ 66, Đường Ngô Đình, Xóm 7, Thôn 5",
+      "ward": "Song Phương",
+      "district": "Hoài Đức",
+      "province": "Hà Nội",
+      "city": "Thành phố Hà Nội",
+      "phone": "+84 123 456 789"
+    }
+  },
   "booking": {
     "title": "Đặt Giao Hàng",
     "subtitle": "Đặt dịch vụ của bạn",

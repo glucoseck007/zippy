@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/language_provider.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ void main() async {
         providers: [
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
           ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ],
         child: const MyApp(),
       ),

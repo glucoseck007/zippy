@@ -8,6 +8,7 @@ import 'package:zippy/screens/home.dart';
 import 'design/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/language_provider.dart';
 
 // Global key for accessing ScaffoldMessenger throughout the app
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
@@ -22,7 +23,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   // Set this to true for automatic mock authentication (DEV MODE ONLY)
-  static const bool _useMockAuth = true; // Enabled for dev mode
+  static const bool _useMockAuth = false; // Enabled for dev mode
 
   @override
   void initState() {
@@ -30,55 +31,74 @@ class _MyAppState extends State<MyApp> {
 
     // Development-only: Set up mock authentication if needed
     // This should be disabled in production
-    _setupDevelopmentAuth();
+    // _setupDevelopmentAuth();
+
+    // Initialize providers after frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      // Initialize language provider
+      final languageProvider = Provider.of<LanguageProvider>(
+        context,
+        listen: false,
+      );
+      languageProvider.initLocale(context);
+
+      // Initialize theme provider based on system preference
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      final brightness = MediaQuery.platformBrightnessOf(context);
+      if (brightness == Brightness.dark) {
+        themeProvider.toggleTheme(true);
+      }
+    });
   }
 
   /// Sets up mock authentication for development convenience
-  void _setupDevelopmentAuth() {
-    if (_useMockAuth && kDebugMode) {
-      // If we're using mock auth and in debug mode, set up auto-login
+  // void _setupDevelopmentAuth() {
+  //   if (_useMockAuth && kDebugMode) {
+  //     // If we're using mock auth and in debug mode, set up auto-login
 
-      // We need to delay this slightly to ensure providers are ready
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (!mounted) return;
+  //     // We need to delay this slightly to ensure providers are ready
+  //     Future.delayed(const Duration(milliseconds: 500), () {
+  //       if (!mounted) return;
 
-        // Get auth provider safely
-        try {
-          final authProvider = Provider.of<AuthProvider>(
-            context,
-            listen: false,
-          );
+  //       // Get auth provider safely
+  //       try {
+  //         final authProvider = Provider.of<AuthProvider>(
+  //           context,
+  //           listen: false,
+  //         );
 
-          // Only set mock authentication if not already authenticated
-          if (authProvider.authState != AuthState.authenticated) {
-            authProvider.setMockAuthentication(
-              role: 'USER', // Change to 'ADMIN' to test admin features
-              username: 'dev_user',
-              email: 'dev@example.com',
-              firstName: 'Developer',
-              lastName: 'Test',
-            );
+  //         // Only set mock authentication if not already authenticated
+  //         if (authProvider.authState != AuthState.authenticated) {
+  //           authProvider.setMockAuthentication(
+  //             role: 'USER', // Change to 'ADMIN' to test admin features
+  //             username: 'dev_user',
+  //             email: 'dev@example.com',
+  //             firstName: 'Developer',
+  //             lastName: 'Test',
+  //           );
 
-            // Show developer notification
-            rootScaffoldMessengerKey.currentState?.showSnackBar(
-              SnackBar(
-                content: const Text('⚠️ DEBUG MODE: Auto-login enabled'),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 3),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+  //           // Show developer notification
+  //           rootScaffoldMessengerKey.currentState?.showSnackBar(
+  //             SnackBar(
+  //               content: const Text('⚠️ DEBUG MODE: Auto-login enabled'),
+  //               backgroundColor: Colors.orange,
+  //               duration: const Duration(seconds: 3),
+  //               behavior: SnackBarBehavior.floating,
+  //             ),
+  //           );
 
-            // Log to console only - UI notification will be handled in MaterialApp builder
-            debugPrint('⚠️ DEVELOPMENT MODE: Using mock authentication');
-          }
-        } catch (e) {
-          // Log any errors during initialization
-          debugPrint('Error setting mock authentication: $e');
-        }
-      });
-    }
-  }
+  //           // Log to console only - UI notification will be handled in MaterialApp builder
+  //           debugPrint('⚠️ DEVELOPMENT MODE: Using mock authentication');
+  //         }
+  //       } catch (e) {
+  //         // Log any errors during initialization
+  //         debugPrint('Error setting mock authentication: $e');
+  //       }
+  //     });
+  //   }
+  // }
 
   // We'll move notification display logic to the MaterialApp's builder
   // This is a safer approach than using a separate method
@@ -87,8 +107,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     // Don't call notification display here - we'll handle it in the MaterialApp
 
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, LanguageProvider>(
+      builder: (context, themeProvider, languageProvider, child) {
         return MaterialApp(
           scaffoldMessengerKey: rootScaffoldMessengerKey,
           title: 'Zippy Mobile App',
@@ -104,7 +124,7 @@ class _MyAppState extends State<MyApp> {
                 .localizationDelegates, // Safe way to access EasyLocalization delegates
           ],
           supportedLocales: context.supportedLocales,
-          locale: context.locale,
+          locale: languageProvider.currentLocale, // Use our provider's locale
           // In debug mode with mock auth enabled, start directly at home screen
           initialRoute: (kDebugMode && _useMockAuth) ? '/home' : '/',
           routes: {

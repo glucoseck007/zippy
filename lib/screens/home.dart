@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:zippy/constants/screen_size.dart';
-import 'package:zippy/models/ui/location.dart';
+import 'package:zippy/models/entity/ui/location.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
 import 'package:zippy/screens/payment/payment_screen.dart';
 import 'package:zippy/screens/pickup/pickup_screen.dart';
@@ -15,6 +15,7 @@ import '../design/app_typography.dart';
 import '../design/app_colors.dart';
 import '../components/service_item.dart';
 import '../components/custom_place_card.dart';
+import '../components/navigation_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +25,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Add a GlobalKey for the Scaffold
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   final List<Location> locations = [
     Location(
       name: 'Tòa Alpha',
@@ -91,9 +95,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = authProvider.currentUser;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: isDarkMode
           ? AppColors.dmBackgroundColor
           : AppColors.backgroundColor,
+      drawer: const AppNavigationDrawer(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -105,17 +111,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: const EdgeInsets.only(top: 16),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? AppColors.dmCardColor
-                            : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.menu,
-                        color: isDarkMode ? Colors.white70 : Colors.black54,
+                    InkWell(
+                      onTap: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? AppColors.dmCardColor
+                              : Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.menu,
+                          color: isDarkMode ? Colors.white70 : Colors.black54,
+                        ),
                       ),
                     ),
                     const Spacer(),
@@ -185,7 +196,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 12),
                     Text(
                       tr('home.search_placeholder'),
-                      style: AppTypography.bodyText,
+                      style: isDarkMode
+                          ? AppTypography.dmBodyText
+                          : AppTypography.bodyText,
                     ),
                   ],
                 ),
@@ -250,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 16),
 
-              // Restaurant List
+              // Building List
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
