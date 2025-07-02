@@ -1,21 +1,23 @@
-class AuthResult {
+import 'dart:convert';
+
+class ApiResponse<T> {
   final bool success;
   final String message;
   final Map<String, dynamic> data;
   final DateTime timestamp;
 
-  AuthResult({
+  ApiResponse({
     required this.success,
     required this.message,
     required this.data,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
-  factory AuthResult.success({
+  factory ApiResponse.success({
     String message = 'Operation successful',
     Map<String, dynamic> data = const {},
   }) {
-    return AuthResult(
+    return ApiResponse(
       success: true,
       message: message,
       data: data,
@@ -23,11 +25,11 @@ class AuthResult {
     );
   }
 
-  factory AuthResult.error({
+  factory ApiResponse.error({
     String message = 'Operation failed',
     Map<String, dynamic> data = const {},
   }) {
-    return AuthResult(
+    return ApiResponse(
       success: false,
       message: message,
       data: data,
@@ -35,8 +37,9 @@ class AuthResult {
     );
   }
 
-  factory AuthResult.fromJson(Map<String, dynamic> json) {
-    return AuthResult(
+  factory ApiResponse.fromJson(String responseBody) {
+    final Map<String, dynamic> json = jsonDecode(responseBody);
+    return ApiResponse(
       success: json['success'] ?? false,
       message: json['message'] ?? '',
       data: json['data'] ?? {},

@@ -103,6 +103,8 @@
     "dark_mode": "Chế độ tối",
     "logout": "Đăng xuất",
     "language_changed": "Đã chuyển sang ngôn ngữ {0}",
+    "changing_language": "Đang thay đổi ngôn ngữ...",
+    "guest_user": "Khách",
     "dark_mode_enabled": "Đã bật chế độ tối",
     "light_mode_enabled": "Đã bật chế độ sáng"
   },

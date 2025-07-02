@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/design/app_typography.dart';
 import '../design/app_colors.dart';
-import '../providers/theme_provider.dart';
+import '../providers/core/theme_provider.dart';
 
-class ServiceItem extends StatelessWidget {
+class ServiceItem extends ConsumerWidget {
   final String text;
   final VoidCallback onTap;
   final IconData? icon;
@@ -24,9 +24,9 @@ class ServiceItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeProviderState = ref.watch(themeProvider);
+    final isDarkMode = themeProviderState.isDarkMode;
 
     return GestureDetector(
       onTap: onTap,

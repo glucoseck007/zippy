@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../design/app_colors.dart';
 import '../design/app_typography.dart';
-import '../providers/theme_provider.dart';
+import '../providers/core/theme_provider.dart';
 import './mini_map_widget.dart';
 
-class CustomPlaceCard extends StatelessWidget {
+class CustomPlaceCard extends ConsumerWidget {
   final String name;
   final String? description;
   final double? rating;
@@ -28,9 +28,9 @@ class CustomPlaceCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeProviderState = ref.watch(themeProvider);
+    final isDarkMode = themeProviderState.isDarkMode;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),

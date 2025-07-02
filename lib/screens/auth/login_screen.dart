@@ -1,26 +1,27 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/components/custom_input.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
-import 'package:zippy/providers/theme_provider.dart';
-import 'package:zippy/providers/auth_provider.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
+import 'package:zippy/providers/auth/auth_provider.dart';
+import 'package:zippy/models/request/auth/login_request.dart';
+import 'package:zippy/state/auth/auth_state.dart';
 import 'package:zippy/screens/auth/signup_screen.dart';
 import 'package:zippy/screens/auth/forgot_password_screen.dart';
-import 'package:zippy/screens/auth/verify_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'dart:io';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailOrUsernameController =
       TextEditingController();
@@ -67,77 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _showVerificationDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('auth.error')),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop(); // Close dialog first
-
-              // Send resend OTP request using AuthProvider
-              final loginValue = _emailOrUsernameController.text.trim();
-              try {
-                final authProvider = Provider.of<AuthProvider>(
-                  context,
-                  listen: false,
-                );
-                final result = await authProvider.resendOTP(
-                  credential: loginValue,
-                );
-
-                if (result.isSuccess) {
-                  // Show success message if needed
-                  if (mounted && result.message != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(result.message!),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } else {
-                  // Show error message if resend failed
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          result.errorMessage ?? 'Failed to resend OTP',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Resend OTP error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-
-              // Navigate to verify screen
-              if (mounted) {
-                NavigationManager.navigateToWithSlideTransition(
-                  context,
-                  VerifyScreen(email: loginValue),
-                );
-              }
-            },
-            child: Text(tr('auth.ok')),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -147,28 +77,29 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final loginValue = _emailOrUsernameController.text.trim();
+    final authNotifier = ref.read(authProvider.notifier);
 
     try {
-      final result = await authProvider.login(
-        credential: loginValue,
+      final loginRequest = LoginRequest(
+        credential: _emailOrUsernameController.text.trim(),
         password: _passwordController.text,
       );
 
+      await authNotifier.login(loginRequest);
+
       if (!mounted) return;
 
-      if (result.isSuccess) {
+      // Check the current auth state after login
+      final currentAuthState = ref.read(authProvider);
+
+      debugPrint('Login completed, Auth State: ${currentAuthState.status}');
+
+      if (currentAuthState.status == AuthStatus.authenticated) {
+        debugPrint('Auth state is authenticated, navigating to home');
         // Navigate to home on success
         Navigator.of(context).pushReplacementNamed('/home');
-      } else if (result.isVerificationError) {
-        // Handle account not verified
-        _showVerificationDialog(
-          result.errorMessage ?? tr('auth.error_not_verified'),
-        );
-      } else {
-        // Handle other errors
-        _showErrorDialog(result.errorMessage ?? tr('auth.login_failed'));
+      } else if (currentAuthState.status == AuthStatus.unauthenticated) {
+        _showErrorDialog(tr('auth.login_failed'));
       }
     } on SocketException {
       if (mounted) {
@@ -189,8 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
 
     // determine if login can be attempted
     final canLogin =

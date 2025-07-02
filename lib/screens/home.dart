@@ -1,30 +1,29 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:zippy/constants/screen_size.dart';
-import 'package:zippy/models/entity/ui/location.dart';
+import 'package:zippy/models/entity/location/location.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
 import 'package:zippy/screens/payment/payment_screen.dart';
 import 'package:zippy/screens/pickup/pickup_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
-import '../providers/auth_provider.dart';
-import '../providers/theme_provider.dart';
 import '../design/app_typography.dart';
 import '../design/app_colors.dart';
 import '../components/service_item.dart';
 import '../components/custom_place_card.dart';
 import '../components/navigation_drawer.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Add a GlobalKey for the Scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -89,10 +88,11 @@ class _HomeScreenState extends State<HomeScreen> {
         textColor: Color(0xfffFEF3E2),
       ),
     ];
-    final authProvider = Provider.of<AuthProvider>(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final user = authProvider.currentUser;
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+    // For now, user is null since the current auth provider doesn't track user data
+    // This should be updated when user management is added to the auth provider
+    const user = null;
 
     return Scaffold(
       key: _scaffoldKey,

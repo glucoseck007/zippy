@@ -1,11 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
-import 'package:zippy/providers/theme_provider.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
 
-class CustomInput extends StatelessWidget {
+class CustomInput extends ConsumerWidget {
   final String labelKey;
   final String hintKey;
   final bool obscureText;
@@ -30,9 +30,9 @@ class CustomInput extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeProviderState = ref.watch(themeProvider);
+    final isDarkMode = themeProviderState.isDarkMode;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

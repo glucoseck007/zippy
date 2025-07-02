@@ -5,22 +5,22 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
-import 'package:zippy/providers/theme_provider.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
 
-class VerifyScreen extends StatefulWidget {
+class VerifyScreen extends ConsumerStatefulWidget {
   final String email;
 
   const VerifyScreen({super.key, required this.email});
 
   @override
-  State<VerifyScreen> createState() => _VerifyScreenState();
+  ConsumerState<VerifyScreen> createState() => _VerifyScreenState();
 }
 
-class _VerifyScreenState extends State<VerifyScreen> {
+class _VerifyScreenState extends ConsumerState<VerifyScreen> {
   // Verification code digits
   final List<TextEditingController> _controllers = List.generate(
     6, // 6-digit code
@@ -205,8 +205,8 @@ class _VerifyScreenState extends State<VerifyScreen> {
   }
 
   Widget _buildKeyboardButton(String number, String letters) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
 
     return InkWell(
       onTap: () {
@@ -254,8 +254,8 @@ class _VerifyScreenState extends State<VerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(

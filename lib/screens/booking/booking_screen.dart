@@ -1,26 +1,26 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/components/custom_input.dart';
 import 'package:zippy/components/map_component.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
-import 'package:zippy/providers/theme_provider.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/home.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'package:zippy/widgets/gif_view.dart';
 import 'package:zippy/services/map/osm_service.dart';
 
-class BookingScreen extends StatefulWidget {
+class BookingScreen extends ConsumerStatefulWidget {
   const BookingScreen({super.key});
 
   @override
-  State<BookingScreen> createState() => _BookingScreenState();
+  ConsumerState<BookingScreen> createState() => _BookingScreenState();
 }
 
-class _BookingScreenState extends State<BookingScreen> {
+class _BookingScreenState extends ConsumerState<BookingScreen> {
   final TextEditingController _productNameController = TextEditingController();
   String _selectedBox = ''; // Default selected cargo space
   final List<String> _boxOptions = [
@@ -144,7 +144,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final themeState = ref.watch(themeProvider);
+    bool isDarkMode = themeState.isDarkMode;
 
     return Scaffold(
       appBar: AppBar(

@@ -1,20 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
-import '../../providers/auth_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zippy/design/app_typography.dart';
+import 'package:zippy/design/app_colors.dart';
+import 'package:zippy/models/response/api_response.dart';
 import '../../services/api_client.dart';
-import '../../models/entity/address.dart';
-import '../../models/entity/auth/user.dart';
+import '../../models/entity/location/address.dart';
 import '../../components/custom_input.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isLoading = false;
   Map<String, dynamic>? _profileData;
   String? _errorMessage;
@@ -66,9 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     // Set phone from user data or profile data
-    final phone =
-        _profileData?['phone'] ??
-        Provider.of<AuthProvider>(context, listen: false).currentUser?.phone;
+    final phone = _profileData?['phone'];
     _phoneController.text = phone ?? tr('profile.default.phone');
   }
 
@@ -80,16 +79,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       // Example authenticated API call to get user profile
-      final response = await ApiClient.get('/user/profile');
+      final response = await ApiClient.get('/account/profile');
 
-      if (ApiClient.isSuccessResponse(response)) {
-        final data = ApiClient.handleResponse(response);
+      final apiResponse = ApiResponse.fromJson(response.body);
+      if (apiResponse.success) {
         setState(() {
-          _profileData = data;
+          _profileData = apiResponse.data;
         });
 
         // Initialize controllers with loaded data
         _initializeControllers();
+      } else {
+        setState(() {
+          _errorMessage = apiResponse.message;
+        });
       }
     } catch (e) {
       setState(() {
@@ -126,43 +129,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
         body: updates,
       );
 
-      if (ApiClient.isSuccessResponse(response)) {
-        final data = ApiClient.handleResponse(response);
+      final apiResponse = ApiResponse.fromJson(response.body);
+      if (apiResponse.success) {
         setState(() {
-          _profileData = data;
+          _profileData = apiResponse.data;
         });
 
-        // Update the user in AuthProvider
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        if (authProvider.currentUser != null) {
-          // Create an updated user with the new phone number
-          final updatedUser = User(
-            id: authProvider.currentUser!.id,
-            username: authProvider.currentUser!.username,
-            email: authProvider.currentUser!.email,
-            firstName: authProvider.currentUser!.firstName,
-            lastName: authProvider.currentUser!.lastName,
-            phone: _phoneController.text,
-            profileImage: authProvider.currentUser!.profileImage,
-            isVerified: authProvider.currentUser!.isVerified,
-            createdAt: authProvider.currentUser!.createdAt,
-            updatedAt: DateTime.now(),
-          );
-          authProvider.updateUser(updatedUser);
-        }
+        // TODO: Update user in AuthProvider when user state is available
+        // This would require extending AuthState to include user data
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(tr('profile.address_updated'))));
+        final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr('profile.address_updated'),
+              style: AppTypography.bodyText.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: isDarkMode
+                ? AppColors.dmSuccessColor
+                : AppColors.successColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        setState(() {
+          _errorMessage = apiResponse.message;
+        });
       }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
+      final bool isDarkErrorMode =
+          Theme.of(context).brightness == Brightness.dark;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to update profile: $e',
+            style: AppTypography.bodyText.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: isDarkErrorMode
+              ? AppColors.dmRejectColor
+              : AppColors.rejectColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -172,8 +190,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.currentUser;
+    // TODO: User data is not yet available in AuthState
+    // When AuthState is extended to include user data, uncomment and use:
+    // final authState = ref.watch(authProvider);
+    // final user = authState.user;
+    final user = null;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     // Initialize controllers if not already done
     if (_phoneController.text.isEmpty && user != null) {
@@ -181,202 +203,328 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
+      backgroundColor: isDarkMode
+          ? AppColors.dmBackgroundColor
+          : AppColors.backgroundColor,
       appBar: AppBar(
-        title: Text(tr('profile.personal_info')),
+        backgroundColor: isDarkMode
+            ? AppColors.dmBackgroundColor
+            : AppColors.backgroundColor,
+        title: Text(
+          tr('profile.personal_info'),
+          style: isDarkMode
+              ? AppTypography.dmTitleText
+              : AppTypography.titleText,
+        ),
+        iconTheme: IconThemeData(
+          color: isDarkMode ? AppColors.dmDefaultColor : AppColors.defaultColor,
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh),
+            color: isDarkMode ? AppColors.buttonColor : AppColors.buttonColor,
             onPressed: _isLoading ? null : _loadProfile,
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (_errorMessage != null)
-                Card(
-                  color: Colors.red.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr('auth.error'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
+      body: Container(
+        color: isDarkMode
+            ? AppColors.dmBackgroundColor
+            : AppColors.backgroundColor,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isLoading)
+                  Center(
+                    child: CircularProgressIndicator(
+                      color: isDarkMode
+                          ? AppColors.dmButtonColor
+                          : AppColors.buttonColor,
+                    ),
+                  )
+                else if (_errorMessage != null)
+                  Card(
+                    color: isDarkMode
+                        ? AppColors.dmRejectColor.withOpacity(0.2)
+                        : AppColors.rejectColor.withOpacity(0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('auth.error'),
+                            style:
+                                (isDarkMode
+                                        ? AppTypography.dmSubTitleText
+                                        : AppTypography.subTitleText)
+                                    .copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDarkMode
+                                          ? AppColors.dmRejectColor
+                                          : AppColors.rejectColor,
+                                    ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadProfile,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else ...[
-                // Personal Information
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr('profile.personal_info'),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          const SizedBox(height: 8),
+                          Text(
+                            _errorMessage!,
+                            style:
+                                (isDarkMode
+                                        ? AppTypography.dmBodyText
+                                        : AppTypography.bodyText)
+                                    .copyWith(
+                                      color: isDarkMode
+                                          ? AppColors.dmRejectColor.withOpacity(
+                                              0.9,
+                                            )
+                                          : AppColors.rejectColor,
+                                    ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (user != null) ...[
-                          _buildInfoRow(tr('profile.full_name'), user.fullName),
-                          _buildInfoRow(tr('profile.username'), user.username),
-                          _buildInfoRow(tr('profile.email'), user.email),
-                        ] else
-                          const Text('No user data available'),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Contact Information (Editable Phone)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr('profile.contact_info'),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _loadProfile,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDarkMode
+                                  ? AppColors.dmRejectColor
+                                  : AppColors.rejectColor,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: Text('Retry'),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Phone Number (editable)
-                        CustomInput(
-                          labelKey: 'profile.phone',
-                          hintKey: 'auth.input.phone_hint',
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Address Information (Editable)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr('profile.address_info'),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                  )
+                else ...[
+                  // Personal Information
+                  Card(
+                    color: isDarkMode ? AppColors.dmCardColor : Colors.white,
+                    elevation: isDarkMode ? 2 : 1,
+                    shadowColor: isDarkMode
+                        ? AppColors.dmButtonColor.withOpacity(0.2)
+                        : AppColors.buttonColor.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: isDarkMode
+                          ? BorderSide(
+                              color: AppColors.dmCardColor.withOpacity(0.6),
+                              width: 1,
+                            )
+                          : BorderSide.none,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('profile.personal_info'),
+                            style: isDarkMode
+                                ? AppTypography.dmTitleText
+                                : AppTypography.titleText,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Street Address
-                        CustomInput(
-                          labelKey: 'profile.address',
-                          hintKey: 'profile.address_required',
-                          controller: _streetController,
-                          keyboardType: TextInputType.streetAddress,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Ward & District (2 in a row)
-                        Row(
-                          children: [
-                            // Ward
-                            Expanded(
-                              child: CustomInput(
-                                labelKey: 'profile.ward',
-                                hintKey: 'profile.ward_required',
-                                controller: _wardController,
-                              ),
+                          const SizedBox(height: 16),
+                          if (user != null) ...[
+                            _buildInfoRow(
+                              tr('profile.full_name'),
+                              "${user.firstName} ${user.lastName}",
                             ),
-                            const SizedBox(width: 16),
-                            // District
-                            Expanded(
-                              child: CustomInput(
-                                labelKey: 'profile.district',
-                                hintKey: 'profile.district_required',
-                                controller: _districtController,
-                              ),
+                            _buildInfoRow(
+                              tr('profile.username'),
+                              user.username,
                             ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Province & City (2 in a row)
-                        Row(
-                          children: [
-                            // Province
-                            Expanded(
-                              child: CustomInput(
-                                labelKey: 'profile.province',
-                                hintKey: 'profile.province_required',
-                                controller: _provinceController,
-                              ),
+                            _buildInfoRow(tr('profile.email'), user.email),
+                          ] else
+                            Text(
+                              'No user data available',
+                              style:
+                                  (isDarkMode
+                                          ? AppTypography.dmBodyText
+                                          : AppTypography.bodyText)
+                                      .copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: isDarkMode
+                                            ? AppColors.dmDefaultColor
+                                                  .withOpacity(0.7)
+                                            : AppColors.defaultColor
+                                                  .withOpacity(0.7),
+                                      ),
                             ),
-                            const SizedBox(width: 16),
-                            // City
-                            Expanded(
-                              child: CustomInput(
-                                labelKey: 'profile.city',
-                                hintKey: 'profile.city_required',
-                                controller: _cityController,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                // Save Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _updateProfile,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  // Contact Information (Editable Phone)
+                  Card(
+                    color: isDarkMode ? AppColors.dmCardColor : Colors.white,
+                    elevation: isDarkMode ? 2 : 1,
+                    shadowColor: isDarkMode
+                        ? AppColors.dmButtonColor.withOpacity(0.2)
+                        : AppColors.buttonColor.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: isDarkMode
+                          ? BorderSide(
+                              color: AppColors.dmCardColor.withOpacity(0.6),
+                              width: 1,
+                            )
+                          : BorderSide.none,
                     ),
-                    child: Text(tr('profile.save_address')),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('profile.contact_info'),
+                            style: isDarkMode
+                                ? AppTypography.dmTitleText
+                                : AppTypography.titleText,
+                          ),
+                          const SizedBox(height: 16),
+                          // Phone Number (editable)
+                          CustomInput(
+                            labelKey: 'profile.phone',
+                            hintKey: 'auth.input.phone_hint',
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 16),
+
+                  // Address Information (Editable)
+                  Card(
+                    color: isDarkMode ? AppColors.dmCardColor : Colors.white,
+                    elevation: isDarkMode ? 2 : 1,
+                    shadowColor: isDarkMode
+                        ? AppColors.dmButtonColor.withOpacity(0.2)
+                        : AppColors.buttonColor.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: isDarkMode
+                          ? BorderSide(
+                              color: AppColors.dmCardColor.withOpacity(0.6),
+                              width: 1,
+                            )
+                          : BorderSide.none,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('profile.address_info'),
+                            style: isDarkMode
+                                ? AppTypography.dmTitleText
+                                : AppTypography.titleText,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Street Address
+                          CustomInput(
+                            labelKey: 'profile.address',
+                            hintKey: 'profile.address_required',
+                            controller: _streetController,
+                            keyboardType: TextInputType.streetAddress,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Ward & District (2 in a row)
+                          Row(
+                            children: [
+                              // Ward
+                              Expanded(
+                                child: CustomInput(
+                                  labelKey: 'profile.ward',
+                                  hintKey: 'profile.ward_required',
+                                  controller: _wardController,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // District
+                              Expanded(
+                                child: CustomInput(
+                                  labelKey: 'profile.district',
+                                  hintKey: 'profile.district_required',
+                                  controller: _districtController,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Province & City (2 in a row)
+                          Row(
+                            children: [
+                              // Province
+                              Expanded(
+                                child: CustomInput(
+                                  labelKey: 'profile.province',
+                                  hintKey: 'profile.province_required',
+                                  controller: _provinceController,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // City
+                              Expanded(
+                                child: CustomInput(
+                                  labelKey: 'profile.city',
+                                  hintKey: 'profile.city_required',
+                                  controller: _cityController,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _updateProfile,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: isDarkMode
+                            ? AppColors.dmButtonColor
+                            : AppColors.buttonColor,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: isDarkMode
+                            ? AppColors.dmCardColor
+                            : AppColors.cardColor.withOpacity(0.3),
+                        disabledForegroundColor: isDarkMode
+                            ? AppColors.dmDefaultColor.withOpacity(0.6)
+                            : AppColors.defaultColor.withOpacity(0.6),
+                        elevation: isDarkMode ? 4 : 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        tr('profile.save_address'),
+                        style: AppTypography.buttonText,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -384,19 +532,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 125,
             child: Text(
               '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style:
+                  (isDarkMode
+                          ? AppTypography.dmSubTitleText
+                          : AppTypography.subTitleText)
+                      .copyWith(
+                        color: isDarkMode
+                            ? AppColors.dmDefaultColor.withOpacity(0.8)
+                            : AppColors.defaultColor.withOpacity(0.8),
+                        fontWeight: FontWeight.w600,
+                      ),
             ),
           ),
-          Expanded(child: Text(value)),
+          Flexible(
+            child: Text(
+              value,
+              style: isDarkMode
+                  ? AppTypography.dmSubTitleText
+                  : AppTypography.subTitleText,
+            ),
+          ),
         ],
       ),
     );

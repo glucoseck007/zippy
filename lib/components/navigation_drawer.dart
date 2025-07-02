@@ -1,12 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:provider/provider.dart';
-import 'package:zippy/providers/auth_provider.dart';
-import 'package:zippy/providers/language_provider.dart';
-import 'package:zippy/providers/theme_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zippy/providers/auth/auth_provider.dart';
+import 'package:zippy/providers/core/language_provider.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/auth/login_screen.dart';
-import 'package:zippy/screens/home.dart';
 import 'package:zippy/screens/account/profile_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'package:zippy/utils/snackbar_manager.dart';
@@ -14,81 +13,35 @@ import '../design/app_colors.dart';
 import '../design/app_typography.dart';
 import '../models/entity/auth/user.dart';
 
-class AppNavigationDrawer extends StatelessWidget {
+class AppNavigationDrawer extends ConsumerWidget {
   const AppNavigationDrawer({super.key});
 
-  // Helper method to change the app language
-  void _changeLanguage(BuildContext context) async {
-    final languageProvider = Provider.of<LanguageProvider>(
-      context,
-      listen: false,
-    );
-
-    // Use the provider to change the language
-    await languageProvider.changeLanguage(context);
-
-    // For more stubborn cases, we could try to rebuild the entire app
-    // This is an advanced technique - we access the navigator and do a quick reset
-    final navigatorState = Navigator.of(context, rootNavigator: true);
-    final currentRoute = ModalRoute.of(context)?.settings.name ?? '/home';
-
-    if (currentRoute == '/home') {
-      // Force a more complete rebuild of the app by popping and pushing
-      // This ensures the language change is propagated throughout the app
-      navigatorState.pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-          settings: const RouteSettings(name: '/home'),
-        ),
-        (route) => false, // Remove all previous routes
-      );
-    }
-
-    // Show language change notification
-    Future.delayed(const Duration(milliseconds: 500), () {
-      final languageName = languageProvider.getCurrentLanguageName();
-      SnackbarManager().showInfoSnackBar(
-        tr('drawer.language_changed', args: [languageName]),
-      );
-    });
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    // Use watch instead of read to ensure rebuilds when theme changes
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
-    final languageProvider = Provider.of<LanguageProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final user = authProvider.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
 
-    // Initialize language provider with current context locale
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      languageProvider.initLocale(context);
-    });
+    // Get current user
+    final user = ref.watch(currentUserProvider);
 
     return Drawer(
       backgroundColor: isDarkMode
           ? AppColors.dmCardColor
-          : Colors.grey.shade200,
+          : AppColors.backgroundColor,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User Info Section
               _buildUserInfo(context, user, isDarkMode),
 
               const SizedBox(height: 24),
 
               // Drawer Menu Items
-              Expanded(
-                child: _buildMenuItems(context, isDarkMode, themeProvider),
-              ),
+              _buildMenuItems(context, isDarkMode, ref),
 
               // Logout Button
-              _buildLogoutButton(context, authProvider, isDarkMode),
+              _buildLogoutButton(context, ref, isDarkMode),
 
               const SizedBox(height: 16),
             ],
@@ -104,11 +57,15 @@ class AppNavigationDrawer extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: Colors.grey.shade300,
+            backgroundColor: isDarkMode
+                ? AppColors.dmCardColor
+                : AppColors.cardColor,
             child: Icon(
               Icons.person,
               size: 36,
-              color: isDarkMode ? Colors.white : Colors.black,
+              color: isDarkMode
+                  ? AppColors.dmHeadingColor
+                  : AppColors.headingColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -117,23 +74,19 @@ class AppNavigationDrawer extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?.username ?? 'Guest',
+                  user?.fullName ?? tr('drawer.guest_user'),
                   style: isDarkMode
                       ? AppTypography.dmTitleText
                       : AppTypography.titleText,
                 ),
-                const SizedBox(height: 4),
+                if (user?.email != null && user!.email!.isNotEmpty)
+                  Text(
+                    user.email!,
+                    style: isDarkMode
+                        ? AppTypography.subTitleText
+                        : AppTypography.dmSubTitleText,
+                  ),
               ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              // Close the drawer
-              Navigator.of(context).pop();
-            },
-            icon: Icon(
-              Icons.close,
-              color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
           ),
         ],
@@ -141,11 +94,137 @@ class AppNavigationDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItems(
-    BuildContext context,
-    bool isDarkMode,
-    ThemeProvider themeProvider,
-  ) {
+  // Helper method to change the app language
+  void _changeLanguage(BuildContext context, WidgetRef ref) async {
+    try {
+      // Close drawer first to avoid context issues
+      Navigator.of(context).pop();
+
+      // Show loading overlay
+      _showLanguageChangeLoading(context);
+
+      // Small delay to ensure drawer is closed and loading is visible
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      final languageNotifier = ref.read(languageProvider.notifier);
+
+      // Change the language
+      await languageNotifier.toggleLanguage(context);
+
+      // Additional delay for smooth transition
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // Hide loading overlay
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Remove loading overlay
+      }
+
+      // Show language change notification after a brief delay
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (context.mounted) {
+          final newLanguage = ref.read(languageProvider).displayName;
+          SnackbarManager().showInfoSnackBar(
+            tr('drawer.language_changed', args: [newLanguage]),
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Error changing language: $e');
+      // Hide loading overlay if still showing
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      // Show error message if language change fails
+      if (context.mounted) {
+        SnackbarManager().showErrorSnackBar(
+          'Failed to change language. Please try again.',
+        );
+      }
+    }
+  }
+
+  // Show loading overlay during language change
+  void _showLanguageChangeLoading(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.4),
+      builder: (BuildContext dialogContext) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final themeState = ref.watch(themeProvider);
+            final isDarkMode = themeState.isDarkMode;
+
+            return PopScope(
+              canPop: false,
+              child: Dialog(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? AppColors.dmCardColor
+                        : AppColors.backgroundColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 4,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isDarkMode
+                                ? AppColors.dmButtonColor
+                                : AppColors.buttonColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        tr('drawer.changing_language'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode
+                              ? AppColors.dmHeadingColor
+                              : AppColors.headingColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please wait...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDarkMode
+                              ? AppColors.dmDefaultColor
+                              : AppColors.defaultColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMenuItems(BuildContext context, bool isDarkMode, WidgetRef ref) {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
@@ -163,7 +242,9 @@ class AppNavigationDrawer extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           leading: Icon(
             LucideIcons.user,
-            color: isDarkMode ? Colors.white70 : Colors.black54,
+            color: isDarkMode
+                ? AppColors.dmDefaultColor
+                : AppColors.defaultColor,
           ),
           title: Text(
             tr('drawer.account'),
@@ -172,20 +253,19 @@ class AppNavigationDrawer extends StatelessWidget {
                 : AppTypography.bodyText,
           ),
         ),
-        Consumer<LanguageProvider>(
-          builder: (context, languageProvider, child) {
+        Consumer(
+          builder: (context, ref, child) {
             return ListTile(
               onTap: () {
-                // Handle language settings
-                Navigator.of(context).pop(); // Close drawer
-
-                // Call the helper method to change language
-                _changeLanguage(context);
+                // Call the helper method to change language (it will close drawer)
+                _changeLanguage(context, ref);
               },
               contentPadding: EdgeInsets.zero,
               leading: Icon(
                 LucideIcons.globe,
-                color: isDarkMode ? Colors.white70 : Colors.black54,
+                color: isDarkMode
+                    ? AppColors.dmDefaultColor
+                    : AppColors.defaultColor,
               ),
               title: Row(
                 children: [
@@ -196,54 +276,65 @@ class AppNavigationDrawer extends StatelessWidget {
                         : AppTypography.bodyText,
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      languageProvider.getLanguageCode(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.white70 : Colors.black87,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final languageState = ref.watch(languageProvider);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? AppColors.dmInputColor
+                              : AppColors.inputColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          languageState.code,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDarkMode
+                                ? AppColors.dmDefaultColor
+                                : AppColors.defaultColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             );
           },
         ),
-        Consumer<ThemeProvider>(
-          builder: (context, themeProvider, child) {
-            final isDark = themeProvider.isDarkMode;
+        Consumer(
+          builder: (context, ref, child) {
+            final themeState = ref.watch(themeProvider);
             return ListTile(
               onTap: () {
                 // Handle theme toggling
-                themeProvider.toggleTheme(!isDark);
+                ref.read(themeProvider.notifier).toggle();
                 // Show theme change notification
                 SnackbarManager().showInfoSnackBar(
-                  !isDark
-                      ? tr('drawer.dark_mode_enabled')
-                      : tr('drawer.light_mode_enabled'),
+                  themeState.isDarkMode
+                      ? tr('drawer.light_mode_enabled')
+                      : tr('drawer.dark_mode_enabled'),
                 );
                 // We don't close the drawer so users can see the immediate visual change
               },
               contentPadding: EdgeInsets.zero,
               leading: Icon(
-                isDark ? LucideIcons.sun : LucideIcons.moon,
-                color: isDark ? Colors.white70 : Colors.black54,
+                themeState.isDarkMode ? LucideIcons.sun : LucideIcons.moon,
+                color: themeState.isDarkMode
+                    ? AppColors.dmDefaultColor
+                    : AppColors.defaultColor,
               ),
               title: Text(
-                isDark ? tr('drawer.light_mode') : tr('drawer.dark_mode'),
-                style: isDark
+                themeState.isDarkMode
+                    ? tr('drawer.light_mode')
+                    : tr('drawer.dark_mode'),
+                style: themeState.isDarkMode
                     ? AppTypography.dmBodyText
                     : AppTypography.bodyText,
               ),
@@ -256,22 +347,21 @@ class AppNavigationDrawer extends StatelessWidget {
 
   Widget _buildLogoutButton(
     BuildContext context,
-    AuthProvider authProvider,
+    WidgetRef ref,
     bool isDarkMode,
   ) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
-          // Handle logout
           NavigationManager.navigateToWithSlideTransition(
             context,
             const LoginScreen(),
           );
-          authProvider.logout();
+          ref.read(authProvider.notifier).logout();
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xffFA4032),
+          backgroundColor: AppColors.rejectColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

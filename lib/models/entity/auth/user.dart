@@ -1,26 +1,20 @@
 class User {
-  final String id;
+  final String? id;
   final String username;
-  final String email;
-  final String firstName;
-  final String lastName;
+  final String? email;
+  final String? firstName;
+  final String? lastName;
   final String? phone;
-  final String? profileImage;
-  final bool isVerified;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final bool? isVerified;
 
   User({
-    required this.id,
+    this.id,
     required this.username,
-    required this.email,
-    required this.firstName,
-    required this.lastName,
+    this.email,
+    this.firstName,
+    this.lastName,
     this.phone,
-    this.profileImage,
-    required this.isVerified,
-    required this.createdAt,
-    required this.updatedAt,
+    this.isVerified,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -31,14 +25,7 @@ class User {
       firstName: json['firstName'] ?? '',
       lastName: json['lastName'] ?? '',
       phone: json['phone'],
-      profileImage: json['profileImage'],
       isVerified: json['isVerified'] ?? false,
-      createdAt: DateTime.parse(
-        json['createdAt'] ?? DateTime.now().toIso8601String(),
-      ),
-      updatedAt: DateTime.parse(
-        json['updatedAt'] ?? DateTime.now().toIso8601String(),
-      ),
     );
   }
 
@@ -50,13 +37,28 @@ class User {
       'firstName': firstName,
       'lastName': lastName,
       'phone': phone,
-      'profileImage': profileImage,
       'isVerified': isVerified,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
-  // Helper getter to get full name
-  String get fullName => '$firstName $lastName'.trim();
+  factory User.fromJwt(Map<String, dynamic> payload) {
+    return User(
+      username: payload['sub'] ?? '', // From .setSubject()
+      email: payload['email'] ?? '', // From extraClaims
+      isVerified: payload['status'] == 'ACTIVE', // From extraClaims
+    );
+  }
+
+  // Getter for full name
+  String get fullName {
+    if (firstName != null && lastName != null) {
+      return '${firstName!} ${lastName!}'.trim();
+    } else if (firstName != null) {
+      return firstName!;
+    } else if (lastName != null) {
+      return lastName!;
+    } else {
+      return username;
+    }
+  }
 }

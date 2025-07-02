@@ -103,6 +103,8 @@
     "dark_mode": "Dark Mode",
     "logout": "Logout",
     "language_changed": "Language changed to {0}",
+    "changing_language": "Changing language...",
+    "guest_user": "Guest User",
     "dark_mode_enabled": "Dark mode enabled",
     "light_mode_enabled": "Light mode enabled"
   },

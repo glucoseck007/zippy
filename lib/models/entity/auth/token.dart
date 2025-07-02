@@ -1,18 +1,18 @@
-class AuthTokens {
+class Token {
   final String accessToken;
   final String refreshToken;
   final DateTime accessTokenExpiry;
   final DateTime refreshTokenExpiry;
 
-  AuthTokens({
+  Token({
     required this.accessToken,
     required this.refreshToken,
     required this.accessTokenExpiry,
     required this.refreshTokenExpiry,
   });
 
-  factory AuthTokens.fromJson(Map<String, dynamic> json) {
-    return AuthTokens(
+  factory Token.fromJson(Map<String, dynamic> json) {
+    return Token(
       accessToken: json['accessToken'] ?? json['access_token'] ?? '',
       refreshToken: json['refreshToken'] ?? json['refresh_token'] ?? '',
       accessTokenExpiry: json['accessTokenExpiry'] != null
