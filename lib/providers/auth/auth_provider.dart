@@ -5,7 +5,6 @@ import 'package:zippy/models/request/auth/login_request.dart';
 import 'package:zippy/services/auth/auth_service.dart';
 import 'package:zippy/state/auth/auth_state.dart';
 import 'package:zippy/utils/secure_storage.dart';
-import 'dart:convert';
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState.unknown()) {

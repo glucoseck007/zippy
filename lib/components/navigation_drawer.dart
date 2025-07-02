@@ -38,7 +38,7 @@ class AppNavigationDrawer extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Drawer Menu Items
-              _buildMenuItems(context, isDarkMode, ref),
+              Expanded(child: _buildMenuItems(context, isDarkMode, ref)),
 
               // Logout Button
               _buildLogoutButton(context, ref, isDarkMode),
