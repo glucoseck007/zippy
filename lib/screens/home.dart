@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/models/entity/location/location.dart';
+import 'package:zippy/providers/auth/auth_provider.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
 import 'package:zippy/screens/payment/payment_screen.dart';
@@ -92,7 +93,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isDarkMode = themeState.isDarkMode;
     // For now, user is null since the current auth provider doesn't track user data
     // This should be updated when user management is added to the auth provider
-    const user = null;
+    final user = ref.watch(currentUserProvider);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -155,17 +156,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text:
-                          'Hey ${user?.fullName.split(' ').first ?? 'Guest'}, ',
+                      text: 'Hey ',
                       style: isDarkMode
                           ? AppTypography.dmBodyText.copyWith(fontSize: 16)
                           : AppTypography.bodyText.copyWith(fontSize: 16),
                     ),
                     TextSpan(
-                      text: tr('home.hru'),
+                      text: '${user?.username.split(' ').first ?? 'Guest'}, ',
                       style: isDarkMode
                           ? AppTypography.dmTitleText.copyWith(fontSize: 16)
                           : AppTypography.titleText.copyWith(fontSize: 16),
+                    ),
+                    TextSpan(
+                      text: tr('home.hru'),
+                      style: isDarkMode
+                          ? AppTypography.dmBodyText.copyWith(fontSize: 16)
+                          : AppTypography.bodyText.copyWith(fontSize: 16),
                     ),
                   ],
                 ),

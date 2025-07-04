@@ -10,6 +10,7 @@ import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
+import 'package:zippy/screens/home.dart';
 
 class VerifyScreen extends ConsumerStatefulWidget {
   final String email;
@@ -154,7 +155,9 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       if (mounted) {
         if (response.statusCode == 200) {
           // Verification successful, navigate to home
-          Navigator.of(context).pushReplacementNamed('/home');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
         } else {
           // Show error message
           final errorData = jsonDecode(response.body);

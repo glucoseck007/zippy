@@ -64,6 +64,28 @@ class _MyAppState extends ConsumerState<MyApp> {
         GlobalCupertinoLocalizations.delegate,
         ...context.localizationDelegates,
       ],
+      // Add route generation
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/':
+          case '/home':
+            return MaterialPageRoute(
+              builder: (context) => const AppInitializer(),
+              settings: settings,
+            );
+          case '/login':
+            return MaterialPageRoute(
+              builder: (context) => const LoginScreen(),
+              settings: settings,
+            );
+          default:
+            // Handle unknown routes
+            return MaterialPageRoute(
+              builder: (context) => const AppInitializer(),
+              settings: settings,
+            );
+        }
+      },
       home: const AppInitializer(),
     );
   }
@@ -94,7 +116,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
 
     switch (auth.status) {
       case AuthStatus.unknown:
-      case AuthStatus.loading: // ✅ add this
+      case AuthStatus.loading:
         return const Scaffold(
           body: Center(
             child: Column(

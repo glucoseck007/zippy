@@ -11,6 +11,7 @@ import 'package:zippy/models/request/auth/login_request.dart';
 import 'package:zippy/state/auth/auth_state.dart';
 import 'package:zippy/screens/auth/signup_screen.dart';
 import 'package:zippy/screens/auth/forgot_password_screen.dart';
+import 'package:zippy/screens/home.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'dart:io';
 
@@ -97,7 +98,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (currentAuthState.status == AuthStatus.authenticated) {
         debugPrint('Auth state is authenticated, navigating to home');
         // Navigate to home on success
-        Navigator.of(context).pushReplacementNamed('/home');
+        NavigationManager.navigateToWithSlideTransition(
+          context,
+          const HomeScreen(),
+        );
       } else if (currentAuthState.status == AuthStatus.unauthenticated) {
         _showErrorDialog(tr('auth.login_failed'));
       }

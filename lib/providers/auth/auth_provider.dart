@@ -16,10 +16,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (token != null) {
       final valid = !JwtDecoder.isExpired(token);
       if (valid) {
-        // Extract user information from JWT
+        // Token is valid, extract user information
         final user = _extractUserFromJwt(token);
         state = AuthState.authenticated(user: user);
         return;
+      } else {
+        // Token is expired, try to refresh it
+        print('Access token expired, attempting to refresh...');
+        final refreshSuccess = await _refreshToken();
+        if (refreshSuccess) {
+          // Successfully refreshed, extract user from new token
+          final newToken = await SecureStorage.getAccessToken();
+          if (newToken != null) {
+            final user = _extractUserFromJwt(newToken);
+            state = AuthState.authenticated(user: user);
+            return;
+          }
+        }
+        // Refresh failed, user needs to log in again
+        print('Token refresh failed, user needs to log in again');
       }
     }
     state = const AuthState.unauthenticated();
@@ -47,22 +62,77 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState.unauthenticated();
   }
 
+  /// Refresh the access token using the refresh token
+  Future<bool> _refreshToken() async {
+    try {
+      final refreshToken = await SecureStorage.getRefreshToken();
+      if (refreshToken == null) {
+        print('No refresh token found');
+        return false;
+      }
+
+      // Check if refresh token is expired
+      if (JwtDecoder.isExpired(refreshToken)) {
+        print('Refresh token is expired');
+        await SecureStorage.clearTokens();
+        return false;
+      }
+
+      // Call refresh token API
+      final success = await AuthService.refreshAccessToken();
+      if (success) {
+        print('Token refreshed successfully');
+        return true;
+      } else {
+        print('Failed to refresh token');
+        await SecureStorage.clearTokens();
+        return false;
+      }
+    } catch (e) {
+      print('Error during token refresh: $e');
+      await SecureStorage.clearTokens();
+      return false;
+    }
+  }
+
   /// Extract user information from JWT token
   User? _extractUserFromJwt(String token) {
     try {
       // Decode the JWT payload
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
 
-      // Extract user information from the 'sub' (subject) field
+      print('JWT payload: $decodedToken'); // Debug log
+
+      // Extract user information from the token
+      // The 'sub' field typically contains the username or user ID
       final String? username = decodedToken['sub'];
       if (username == null) return null;
 
-      return User(username: username);
+      // Extract additional user information from JWT claims
+      final String? email = decodedToken['email'];
+      final bool? isVerified =
+          decodedToken['isVerified'] ?? decodedToken['email_verified'];
+
+      return User(username: username, email: email, isVerified: isVerified);
     } catch (e) {
       // If there's an error decoding, log it and return null
       print('Error extracting user from JWT: $e');
       return null;
     }
+  }
+
+  /// Public method to manually refresh token
+  Future<bool> refreshToken() async {
+    final success = await _refreshToken();
+    if (success) {
+      // Update auth state with new token
+      final newToken = await SecureStorage.getAccessToken();
+      if (newToken != null) {
+        final user = _extractUserFromJwt(newToken);
+        state = AuthState.authenticated(user: user);
+      }
+    }
+    return success;
   }
 
   /// Get current user

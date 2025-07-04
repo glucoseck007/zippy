@@ -37,11 +37,8 @@ class AppNavigationDrawer extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Drawer Menu Items
+              // Drawer Menu Items (now includes logout button)
               Expanded(child: _buildMenuItems(context, isDarkMode, ref)),
-
-              // Logout Button
-              _buildLogoutButton(context, ref, isDarkMode),
 
               const SizedBox(height: 16),
             ],
@@ -74,7 +71,7 @@ class AppNavigationDrawer extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?.fullName ?? tr('drawer.guest_user'),
+                  user?.username ?? tr('drawer.guest_user'),
                   style: isDarkMode
                       ? AppTypography.dmTitleText
                       : AppTypography.titleText,
@@ -226,7 +223,7 @@ class AppNavigationDrawer extends ConsumerWidget {
 
   Widget _buildMenuItems(BuildContext context, bool isDarkMode, WidgetRef ref) {
     return ListView(
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.only(left: 8),
       children: [
         ListTile(
           onTap: () {
@@ -341,33 +338,27 @@ class AppNavigationDrawer extends ConsumerWidget {
             );
           },
         ),
-      ],
-    );
-  }
-
-  Widget _buildLogoutButton(
-    BuildContext context,
-    WidgetRef ref,
-    bool isDarkMode,
-  ) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          NavigationManager.navigateToWithSlideTransition(
-            context,
-            const LoginScreen(),
-          );
-          ref.read(authProvider.notifier).logout();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.rejectColor,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        // Logout Button as ListTile
+        ListTile(
+          onTap: () {
+            NavigationManager.navigateToWithSlideTransition(
+              context,
+              const LoginScreen(),
+            );
+            ref.read(authProvider.notifier).logout();
+          },
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(LucideIcons.logOut, color: AppColors.rejectColor),
+          title: Text(
+            tr('drawer.logout'),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppColors.rejectColor,
+            ),
+          ),
         ),
-        child: Text(tr('drawer.logout'), style: AppTypography.buttonText),
-      ),
+      ],
     );
   }
 }
