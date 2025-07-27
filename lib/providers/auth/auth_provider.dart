@@ -42,8 +42,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> login(LoginRequest data) async {
     state = const AuthState.loading();
-    final success = await AuthService.login(data);
-    if (success) {
+    final statusCode = await AuthService.login(data);
+
+    if (statusCode == 200) {
       // After successful login, get the token and extract user info
       final token = await SecureStorage.getAccessToken();
       if (token != null) {
@@ -52,6 +53,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = const AuthState.authenticated();
       }
+    } else if (statusCode == 403) {
+      // Account needs verification
+      state = const AuthState.unauthenticated("Account verification required");
+      throw Exception("verification_required:${data.credential}");
     } else {
       state = const AuthState.unauthenticated("Invalid credentials");
     }

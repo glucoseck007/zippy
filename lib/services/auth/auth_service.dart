@@ -7,7 +7,7 @@ import 'package:zippy/utils/secure_storage.dart';
 
 class AuthService {
   ///Login user with credential and password
-  static Future<bool> login(LoginRequest data) async {
+  static Future<int> login(LoginRequest data) async {
     final response = await ApiClient.post('/auth/login', {
       'credential': data.credential,
       'password': data.password,
@@ -20,10 +20,27 @@ class AuthService {
         authData.accessToken,
         authData.refreshToken,
       );
-      return true;
+      return 200; // Success
+    } else if (response.statusCode == 403) {
+      // Handle forbidden error - account needs verification
+      // Don't automatically send OTP, let the verify screen handle it
+      return 403; // Forbidden - needs verification
     } else {
       // Optionally parse error response and show message
-      return false;
+      return response.statusCode; // Return error code
+    }
+  }
+
+  ///Resend OTP for account verification
+  static Future<int> resendOTP(String credential) async {
+    final response = await ApiClient.get(
+      '/auth/resend-otp?credential=$credential',
+    );
+
+    if (response.statusCode == 200) {
+      return 200; // Success
+    } else {
+      return response.statusCode; // Return error code
     }
   }
 

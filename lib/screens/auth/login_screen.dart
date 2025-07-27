@@ -11,6 +11,7 @@ import 'package:zippy/models/request/auth/login_request.dart';
 import 'package:zippy/state/auth/auth_state.dart';
 import 'package:zippy/screens/auth/signup_screen.dart';
 import 'package:zippy/screens/auth/forgot_password_screen.dart';
+import 'package:zippy/screens/auth/verify_screen.dart';
 import 'package:zippy/screens/home.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import 'dart:io';
@@ -111,7 +112,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showErrorDialog(e.toString());
+        // Check if it's a verification required error
+        if (e.toString().contains('verification_required:')) {
+          final credential = e.toString().split(':').last;
+          // Navigate to verify screen with the credential as email
+          NavigationManager.navigateToWithSlideTransition(
+            context,
+            VerifyScreen(email: credential),
+          );
+        } else {
+          _showErrorDialog(e.toString());
+        }
       }
     } finally {
       if (mounted) {

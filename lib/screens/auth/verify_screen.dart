@@ -11,6 +11,7 @@ import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/home.dart';
+import 'package:zippy/services/auth/auth_service.dart';
 
 class VerifyScreen extends ConsumerStatefulWidget {
   final String email;
@@ -40,6 +41,9 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     super.initState();
     startTimer();
 
+    // Automatically send OTP when the screen loads
+    _sendInitialOTP();
+
     // Set up focus changes
     for (int i = 0; i < 6; i++) {
       _controllers[i].addListener(() {
@@ -48,6 +52,23 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
           FocusScope.of(context).requestFocus(_focusNodes[i + 1]);
         }
       });
+    }
+  }
+
+  Future<void> _sendInitialOTP() async {
+    try {
+      final statusCode = await AuthService.resendOTP(widget.email);
+      if (mounted && statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Verification code sent to ${widget.email}'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Silently handle error - user can manually resend if needed
+      debugPrint('Error sending initial OTP: $e');
     }
   }
 
@@ -76,17 +97,11 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       });
       startTimer(); // Restart the timer
 
-      // Call API to resend OTP
-      final uri = Uri.parse(
-        '${dotenv.env['BACKEND_API_ENDPOINT']}/auth/resend-otp',
-      );
-      final response = await http.get(
-        uri.replace(queryParameters: {'email': widget.email}),
-        headers: {'Content-Type': 'application/json'},
-      );
+      // Call AuthService to resend OTP
+      final statusCode = await AuthService.resendOTP(widget.email);
 
       if (mounted) {
-        if (response.statusCode == 200) {
+        if (statusCode == 200) {
           // Show success feedback
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -96,10 +111,11 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
           );
         } else {
           // Show error message
-          final errorMsg =
-              jsonDecode(response.body)['message'] ?? 'Failed to resend code';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg), duration: Duration(seconds: 3)),
+            SnackBar(
+              content: Text('Failed to resend code. Status: $statusCode'),
+              duration: Duration(seconds: 3),
+            ),
           );
         }
       }
