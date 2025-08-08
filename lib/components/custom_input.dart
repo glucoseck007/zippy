@@ -39,7 +39,9 @@ class CustomInput extends ConsumerWidget {
       children: [
         Text(
           tr(labelKey),
-          style: isDarkMode ? AppTypography.dmBodyText : AppTypography.bodyText,
+          style: isDarkMode
+              ? AppTypography.dmBodyText(context)
+              : AppTypography.bodyText(context),
         ),
         const SizedBox(height: 8),
         // Hide hint once the user has typed something

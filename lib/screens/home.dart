@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/models/entity/location/location.dart';
 import 'package:zippy/providers/auth/auth_provider.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
@@ -144,8 +143,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(
                     tr('home.welcome'),
                     style: isDarkMode
-                        ? AppTypography.dmTitleText
-                        : AppTypography.titleText,
+                        ? AppTypography.dmTitleText(context)
+                        : AppTypography.titleText(context),
                   ),
                   const SizedBox(height: 4),
                 ],
@@ -158,20 +157,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     TextSpan(
                       text: 'Hey ',
                       style: isDarkMode
-                          ? AppTypography.dmBodyText.copyWith(fontSize: 16)
-                          : AppTypography.bodyText.copyWith(fontSize: 16),
+                          ? AppTypography.dmBodyText(
+                              context,
+                            ).copyWith(fontSize: 16)
+                          : AppTypography.bodyText(
+                              context,
+                            ).copyWith(fontSize: 16),
                     ),
                     TextSpan(
                       text: '${user?.username.split(' ').first ?? 'Guest'}, ',
                       style: isDarkMode
-                          ? AppTypography.dmTitleText.copyWith(fontSize: 16)
-                          : AppTypography.titleText.copyWith(fontSize: 16),
+                          ? AppTypography.dmTitleText(
+                              context,
+                            ).copyWith(fontSize: 16)
+                          : AppTypography.titleText(
+                              context,
+                            ).copyWith(fontSize: 16),
                     ),
                     TextSpan(
                       text: tr('home.hru'),
                       style: isDarkMode
-                          ? AppTypography.dmBodyText.copyWith(fontSize: 16)
-                          : AppTypography.bodyText.copyWith(fontSize: 16),
+                          ? AppTypography.dmBodyText(
+                              context,
+                            ).copyWith(fontSize: 16)
+                          : AppTypography.bodyText(
+                              context,
+                            ).copyWith(fontSize: 16),
                     ),
                   ],
                 ),
@@ -203,8 +214,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Text(
                       tr('home.search_placeholder'),
                       style: isDarkMode
-                          ? AppTypography.dmBodyText
-                          : AppTypography.bodyText,
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context),
                     ),
                   ],
                 ),
@@ -219,8 +230,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(
                     tr('home.services.title'),
                     style: isDarkMode
-                        ? AppTypography.dmTitleText
-                        : AppTypography.titleText,
+                        ? AppTypography.dmTitleText(context)
+                        : AppTypography.titleText(context),
                   ),
                 ],
               ),
@@ -229,7 +240,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               // Services List
               SizedBox(
-                height: ScreenSize.height(context) * 0.1,
+                height:
+                    MediaQuery.of(context).size.height * 0.12 +
+                    16, // Match ServiceItem height + padding
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: services.length,
@@ -261,8 +274,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(
                     tr('home.near_by'),
                     style: isDarkMode
-                        ? AppTypography.dmTitleText
-                        : AppTypography.titleText,
+                        ? AppTypography.dmTitleText(context)
+                        : AppTypography.titleText(context),
                   ),
                 ],
               ),

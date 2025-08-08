@@ -73,15 +73,15 @@ class AppNavigationDrawer extends ConsumerWidget {
                 Text(
                   user?.username ?? tr('drawer.guest_user'),
                   style: isDarkMode
-                      ? AppTypography.dmTitleText
-                      : AppTypography.titleText,
+                      ? AppTypography.dmTitleText(context)
+                      : AppTypography.titleText(context),
                 ),
                 if (user?.email != null && user!.email!.isNotEmpty)
                   Text(
                     user.email!,
                     style: isDarkMode
-                        ? AppTypography.subTitleText
-                        : AppTypography.dmSubTitleText,
+                        ? AppTypography.dmSubTitleText(context)
+                        : AppTypography.subTitleText(context),
                   ),
               ],
             ),
@@ -246,8 +246,8 @@ class AppNavigationDrawer extends ConsumerWidget {
           title: Text(
             tr('drawer.account'),
             style: isDarkMode
-                ? AppTypography.dmBodyText
-                : AppTypography.bodyText,
+                ? AppTypography.dmBodyText(context)
+                : AppTypography.bodyText(context),
           ),
         ),
         Consumer(
@@ -269,8 +269,8 @@ class AppNavigationDrawer extends ConsumerWidget {
                   Text(
                     tr('drawer.language'),
                     style: isDarkMode
-                        ? AppTypography.dmBodyText
-                        : AppTypography.bodyText,
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context),
                   ),
                   const SizedBox(width: 8),
                   Consumer(
@@ -332,8 +332,8 @@ class AppNavigationDrawer extends ConsumerWidget {
                     ? tr('drawer.light_mode')
                     : tr('drawer.dark_mode'),
                 style: themeState.isDarkMode
-                    ? AppTypography.dmBodyText
-                    : AppTypography.bodyText,
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
               ),
             );
           },

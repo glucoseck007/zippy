@@ -33,9 +33,12 @@ class ServiceItem extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Container(
-          height: 79.2,
-          width: 112.3,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          height: MediaQuery.of(context).size.height * 0.12,
+          width: MediaQuery.of(context).size.width * 0.25,
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width * 0.02,
+            vertical: MediaQuery.of(context).size.height * 0.01,
+          ),
           decoration: BoxDecoration(
             color:
                 backgroundColor ??
@@ -43,23 +46,44 @@ class ServiceItem extends ConsumerWidget {
             borderRadius: BorderRadius.circular(30),
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon ??
-                    LucideIcons
-                        .package, // Use provided icon or fallback to package icon
-                color:
-                    iconColor ??
-                    (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700),
+              Flexible(
+                child: Icon(
+                  icon ??
+                      LucideIcons
+                          .package, // Use provided icon or fallback to package icon
+                  color:
+                      iconColor ??
+                      (isDarkMode
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade700),
+                  size:
+                      MediaQuery.of(context).size.width *
+                      0.06, // Dynamic icon size
+                ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                text,
-                style:
-                    (isDarkMode
-                            ? AppTypography.dmSubTitleText
-                            : AppTypography.titleText)
-                        .copyWith(fontSize: 14, color: textColor),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.005,
+              ), // Dynamic spacing
+              Flexible(
+                child: Text(
+                  text,
+                  style:
+                      (isDarkMode
+                              ? AppTypography.dmSubTitleText(context)
+                              : AppTypography.titleText(context))
+                          .copyWith(
+                            fontSize:
+                                MediaQuery.of(context).size.width *
+                                0.03, // Dynamic font size
+                            color: textColor,
+                          ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

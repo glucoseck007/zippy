@@ -386,8 +386,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         title: Text(
           tr('booking.title'),
           style: isDarkMode
-              ? AppTypography.dmHeading.copyWith(fontWeight: FontWeight.w500)
-              : AppTypography.heading.copyWith(fontWeight: FontWeight.w500),
+              ? AppTypography.dmHeading(context).copyWith(fontWeight: FontWeight.w500)
+              : AppTypography.heading(context).copyWith(fontWeight: FontWeight.w500),
         ),
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
@@ -465,8 +465,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                         Text(
                           '${tr('booking.step')} ${_currentStep + 1} ${tr('booking.of')} 4',
                           style: isDarkMode
-                              ? AppTypography.dmSubTitleText
-                              : AppTypography.subTitleText,
+                              ? AppTypography.dmSubTitleText(context)
+                              : AppTypography.subTitleText(context),
                         ),
 
                         const SizedBox(height: 24),
@@ -493,7 +493,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               _currentStep == 3
                                   ? tr('booking.submit')
                                   : tr('booking.next'),
-                              style: AppTypography.buttonText,
+                              style: AppTypography.buttonText(context),
                             ),
                           ),
                         ),
@@ -555,8 +555,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           tr('booking.product_info_desc'),
           textAlign: TextAlign.center,
           style: isDarkMode
-              ? AppTypography.dmBodyText.copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
         ),
       ],
     );
@@ -569,16 +569,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         Text(
           tr('booking.select_room'),
           style: isDarkMode
-              ? AppTypography.dmSubTitleText
-              : AppTypography.subTitleText,
+              ? AppTypography.dmSubTitleText(context)
+              : AppTypography.subTitleText(context),
         ),
         const SizedBox(height: 8),
         // Description text for room selection
         Text(
           tr('booking.room_selection_desc'),
           style: isDarkMode
-              ? AppTypography.dmBodyText.copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
@@ -623,8 +623,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     room,
                     style:
                         (isDarkMode
-                                ? AppTypography.dmBodyText
-                                : AppTypography.bodyText)
+                                ? AppTypography.dmBodyText(context)
+                                : AppTypography.bodyText(context))
                             .copyWith(
                               color: isSelected
                                   ? Colors.white
@@ -656,15 +656,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         Text(
           tr('booking.select_robot'),
           style: isDarkMode
-              ? AppTypography.dmSubTitleText
-              : AppTypography.subTitleText,
+              ? AppTypography.dmSubTitleText(context)
+              : AppTypography.subTitleText(context),
         ),
         const SizedBox(height: 8),
         Text(
           tr('booking.robot_selection_desc'),
           style: isDarkMode
-              ? AppTypography.dmBodyText.copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
@@ -700,8 +700,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                             tr('booking.error_loading_robots'),
                         style:
                             (isDarkMode
-                                    ? AppTypography.dmBodyText
-                                    : AppTypography.bodyText)
+                                    ? AppTypography.dmBodyText(context)
+                                    : AppTypography.bodyText(context))
                                 .copyWith(color: Colors.red),
                       ),
                     ),
@@ -725,8 +725,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               '${tr('booking.available_robots')} (${robotState.freeRobots.length})',
               style:
                   (isDarkMode
-                          ? AppTypography.dmSubTitleText
-                          : AppTypography.subTitleText)
+                          ? AppTypography.dmSubTitleText(context)
+                          : AppTypography.subTitleText(context))
                       .copyWith(
                         color: Colors.green,
                         fontWeight: FontWeight.bold,
@@ -787,8 +787,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                 robot.displayName,
                                 style:
                                     (isDarkMode
-                                            ? AppTypography.dmSubTitleText
-                                            : AppTypography.subTitleText)
+                                            ? AppTypography.dmSubTitleText(context)
+                                            : AppTypography.subTitleText(context))
                                         .copyWith(
                                           fontWeight: isSelected
                                               ? FontWeight.bold
@@ -811,8 +811,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                   Text(
                                     '${robot.batteryLevel ?? 75}%',
                                     style: isDarkMode
-                                        ? AppTypography.dmBodyText
-                                        : AppTypography.bodyText,
+                                        ? AppTypography.dmBodyText(context)
+                                        : AppTypography.bodyText(context),
                                   ),
                                   const SizedBox(width: 16),
                                   const Icon(
@@ -826,8 +826,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                       robot.currentLocation ??
                                           tr('booking.unknown'),
                                       style: isDarkMode
-                                          ? AppTypography.dmBodyText
-                                          : AppTypography.bodyText,
+                                          ? AppTypography.dmBodyText(context)
+                                          : AppTypography.bodyText(context),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -846,8 +846,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                     '${tr('booking.eta')}: ${robot.estimatedArrival ?? tr('booking.unknown')}',
                                     style:
                                         (isDarkMode
-                                                ? AppTypography.dmBodyText
-                                                : AppTypography.bodyText)
+                                                ? AppTypography.dmBodyText(context)
+                                                : AppTypography.bodyText(context))
                                             .copyWith(
                                               color: Colors.orange,
                                               fontWeight: FontWeight.w500,
@@ -906,8 +906,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               tr('booking.no_robots_title'),
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmSubTitleText
-                                          : AppTypography.subTitleText)
+                                          ? AppTypography.dmSubTitleText(context)
+                                          : AppTypography.subTitleText(context))
                                       .copyWith(
                                         color: Colors.orange,
                                         fontWeight: FontWeight.bold,
@@ -918,8 +918,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               tr('booking.no_robots_description'),
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmBodyText
-                                          : AppTypography.bodyText)
+                                          ? AppTypography.dmBodyText(context)
+                                          : AppTypography.bodyText(context))
                                       .copyWith(color: Colors.orange),
                             ),
                           ],
@@ -971,8 +971,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               '${tr('booking.busy_robots')} (${robotState.busyRobots.length})',
               style:
                   (isDarkMode
-                          ? AppTypography.dmSubTitleText
-                          : AppTypography.subTitleText)
+                          ? AppTypography.dmSubTitleText(context)
+                          : AppTypography.subTitleText(context))
                       .copyWith(color: Colors.red, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -1014,8 +1014,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               robot.displayName,
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmSubTitleText
-                                          : AppTypography.subTitleText)
+                                          ? AppTypography.dmSubTitleText(context)
+                                          : AppTypography.subTitleText(context))
                                       .copyWith(
                                         color: Colors.red,
                                         fontWeight: FontWeight.w600,
@@ -1026,8 +1026,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               '${tr('booking.currently_at')}: ${robot.currentLocation ?? tr('booking.unknown')}',
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmBodyText
-                                          : AppTypography.bodyText)
+                                          ? AppTypography.dmBodyText(context)
+                                          : AppTypography.bodyText(context))
                                       .copyWith(
                                         color: Colors.red.withOpacity(0.8),
                                       ),
@@ -1036,8 +1036,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               '${tr('booking.available_in')}: ${robot.estimatedArrival ?? tr('booking.unknown')}',
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmBodyText
-                                          : AppTypography.bodyText)
+                                          ? AppTypography.dmBodyText(context)
+                                          : AppTypography.bodyText(context))
                                       .copyWith(
                                         color: Colors.red.withOpacity(0.8),
                                       ),
@@ -1139,15 +1139,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       '${tr('booking.selected_robot')}: ${selectedRobot.displayName}',
                       style:
                           (isDarkMode
-                                  ? AppTypography.dmSubTitleText
-                                  : AppTypography.subTitleText)
+                                  ? AppTypography.dmSubTitleText(context)
+                                  : AppTypography.subTitleText(context))
                               .copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
                       '${tr('booking.eta')}: ${selectedRobot.estimatedArrival ?? tr('booking.unknown')}',
                       style: isDarkMode
-                          ? AppTypography.dmBodyText
-                          : AppTypography.bodyText,
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context),
                     ),
                   ],
                 ),
@@ -1161,15 +1161,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         Text(
           tr('booking.select_container'),
           style: isDarkMode
-              ? AppTypography.dmSubTitleText
-              : AppTypography.subTitleText,
+              ? AppTypography.dmSubTitleText(context)
+              : AppTypography.subTitleText(context),
         ),
         const SizedBox(height: 8),
         Text(
           tr('booking.container_selection_desc'),
           style: isDarkMode
-              ? AppTypography.dmBodyText.copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
@@ -1179,8 +1179,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             '${tr('booking.available_containers')} (${freeContainers.length})',
             style:
                 (isDarkMode
-                        ? AppTypography.dmSubTitleText
-                        : AppTypography.subTitleText)
+                        ? AppTypography.dmSubTitleText(context)
+                        : AppTypography.subTitleText(context))
                     .copyWith(color: Colors.green, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
@@ -1239,8 +1239,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               container.displayName,
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmSubTitleText
-                                          : AppTypography.subTitleText)
+                                          ? AppTypography.dmSubTitleText(context)
+                                          : AppTypography.subTitleText(context))
                                       .copyWith(
                                         fontWeight: isSelected
                                             ? FontWeight.bold
@@ -1259,8 +1259,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                 Text(
                                   '${tr('booking.capacity')}: ${container.capacity ?? '5kg'}',
                                   style: isDarkMode
-                                      ? AppTypography.dmBodyText
-                                      : AppTypography.bodyText,
+                                      ? AppTypography.dmBodyText(context)
+                                      : AppTypography.bodyText(context),
                                 ),
                               ],
                             ),
@@ -1276,8 +1276,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                 Text(
                                   '${tr('booking.size')}: ${container.dimensions ?? '30x20x15cm'}',
                                   style: isDarkMode
-                                      ? AppTypography.dmBodyText
-                                      : AppTypography.bodyText,
+                                      ? AppTypography.dmBodyText(context)
+                                      : AppTypography.bodyText(context),
                                 ),
                               ],
                             ),
@@ -1293,8 +1293,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                 Text(
                                   '${tr('booking.status')}: ${tr('booking.status_available')}',
                                   style: isDarkMode
-                                      ? AppTypography.dmBodyText
-                                      : AppTypography.bodyText,
+                                      ? AppTypography.dmBodyText(context)
+                                      : AppTypography.bodyText(context),
                                 ),
                               ],
                             ),
@@ -1343,8 +1343,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     tr('booking.no_containers_available'),
                     style:
                         (isDarkMode
-                                ? AppTypography.dmBodyText
-                                : AppTypography.bodyText)
+                                ? AppTypography.dmBodyText(context)
+                                : AppTypography.bodyText(context))
                             .copyWith(color: Colors.orange),
                   ),
                 ),
@@ -1361,8 +1361,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             tr('booking.occupied_containers'),
             style:
                 (isDarkMode
-                        ? AppTypography.dmSubTitleText
-                        : AppTypography.subTitleText)
+                        ? AppTypography.dmSubTitleText(context)
+                        : AppTypography.subTitleText(context))
                     .copyWith(color: Colors.red, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
@@ -1404,8 +1404,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                             container.displayName,
                             style:
                                 (isDarkMode
-                                        ? AppTypography.dmSubTitleText
-                                        : AppTypography.subTitleText)
+                                        ? AppTypography.dmSubTitleText(context)
+                                        : AppTypography.subTitleText(context))
                                     .copyWith(
                                       color: Colors.red,
                                       fontWeight: FontWeight.w600,
@@ -1416,8 +1416,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                             '${tr('booking.occupied_by')}: ${container.occupiedBy ?? tr('booking.unknown')}',
                             style:
                                 (isDarkMode
-                                        ? AppTypography.dmBodyText
-                                        : AppTypography.bodyText)
+                                        ? AppTypography.dmBodyText(context)
+                                        : AppTypography.bodyText(context))
                                     .copyWith(
                                       color: Colors.red.withOpacity(0.8),
                                     ),

@@ -4,10 +4,14 @@ import 'package:zippy/models/response/pickup/pickup_response.dart';
 
 class PickupService {
   /// Send OTP via email after QR scan confirmation
-  static Future<PickupResponse?> sendOtp(String orderCode) async {
+  static Future<PickupResponse?> sendOtp(
+    String orderCode,
+    String tripCode,
+  ) async {
     try {
-      final response = await ApiClient.post('/pickup/send-otp', {
+      final response = await ApiClient.post('/order/pickup/send-otp', {
         'orderCode': orderCode,
+        'tripCode': tripCode,
       });
 
       if (response.statusCode == 200) {
@@ -33,11 +37,13 @@ class PickupService {
   static Future<PickupResponse?> verifyOtpAndComplete(
     String orderCode,
     String otp,
+    String tripCode,
   ) async {
     try {
-      final response = await ApiClient.post('/pickup/verify-otp', {
+      final response = await ApiClient.post('/order/pickup/verify-otp', {
         'orderCode': orderCode,
         'otp': otp,
+        'tripCode': tripCode,
       });
 
       if (response.statusCode == 200) {

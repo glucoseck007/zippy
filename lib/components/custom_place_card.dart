@@ -85,8 +85,8 @@ class CustomPlaceCard extends ConsumerWidget {
                 Text(
                   name,
                   style: isDarkMode
-                      ? AppTypography.dmTitleText
-                      : AppTypography.titleText,
+                      ? AppTypography.dmTitleText(context)
+                      : AppTypography.titleText(context),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -119,8 +119,8 @@ class CustomPlaceCard extends ConsumerWidget {
                         'Free',
                         style:
                             (isDarkMode
-                                    ? AppTypography.dmBodyText
-                                    : AppTypography.bodyText)
+                                    ? AppTypography.dmBodyText(context)
+                                    : AppTypography.bodyText(context))
                                 .copyWith(
                                   color: isDarkMode
                                       ? AppColors.dmSuccessColor
@@ -140,8 +140,8 @@ class CustomPlaceCard extends ConsumerWidget {
                     Text(
                       deliveryTime,
                       style: isDarkMode
-                          ? AppTypography.dmBodyText
-                          : AppTypography.bodyText,
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context),
                     ),
                   ],
                 ),

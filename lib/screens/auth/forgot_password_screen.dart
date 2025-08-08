@@ -214,15 +214,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     Text(
                       tr('auth.forgot_password'),
                       style: isDarkMode
-                          ? AppTypography.heading
-                          : AppTypography.dmHeading,
+                          ? AppTypography.heading(context)
+                          : AppTypography.dmHeading(context),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       tr('auth.forgot_password_subtitle'),
                       style: isDarkMode
-                          ? AppTypography.subTitleText
-                          : AppTypography.dmSubTitleText,
+                          ? AppTypography.subTitleText(context)
+                          : AppTypography.dmSubTitleText(context),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -289,8 +289,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             Text(
                               tr('auth.remember_password'),
                               style: isDarkMode
-                                  ? AppTypography.dmBodyText
-                                  : AppTypography.bodyText,
+                                  ? AppTypography.dmBodyText(context)
+                                  : AppTypography.bodyText(context),
                             ),
                             TextButton(
                               onPressed: () {
@@ -327,10 +327,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                 child: Text(
                                   tr('auth.reset_password_info'),
                                   style: isDarkMode
-                                      ? AppTypography.dmBodyText.copyWith(
+                                      ? AppTypography.dmBodyText(context).copyWith(
                                           fontSize: 12,
                                         )
-                                      : AppTypography.bodyText.copyWith(
+                                      : AppTypography.bodyText(context).copyWith(
                                           fontSize: 12,
                                         ),
                                 ),

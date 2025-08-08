@@ -252,8 +252,8 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
             Text(
               number,
               style: isDarkMode
-                  ? AppTypography.dmTitleText
-                  : AppTypography.titleText,
+                  ? AppTypography.dmTitleText(context)
+                  : AppTypography.titleText(context),
             ),
             if (letters.isNotEmpty)
               Text(
@@ -331,15 +331,15 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                         Text(
                           tr('auth.verification'),
                           style: isDarkMode
-                              ? AppTypography.dmHeading
-                              : AppTypography.heading,
+                              ? AppTypography.dmHeading(context)
+                              : AppTypography.heading(context),
                         ),
                         SizedBox(height: 8),
                         Text(
                           tr('auth.verification_subtitle'),
                           style: isDarkMode
-                              ? AppTypography.dmBodyText
-                              : AppTypography.bodyText,
+                              ? AppTypography.dmBodyText(context)
+                              : AppTypography.bodyText(context),
                         ),
                         SizedBox(height: 8),
                       ],
@@ -374,10 +374,10 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                         Text(
                           tr('auth.verification_code'),
                           style: isDarkMode
-                              ? AppTypography.dmBodyText.copyWith(
+                              ? AppTypography.dmBodyText(context).copyWith(
                                   fontWeight: FontWeight.bold,
                                 )
-                              : AppTypography.bodyText.copyWith(
+                              : AppTypography.bodyText(context).copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                         ),
@@ -434,8 +434,8 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                             textAlign: TextAlign.center,
                             maxLength: 1,
                             style: isDarkMode
-                                ? AppTypography.dmTitleText
-                                : AppTypography.titleText,
+                                ? AppTypography.dmTitleText(context)
+                                : AppTypography.titleText(context),
                             decoration: InputDecoration(
                               counterText: '',
                               border: InputBorder.none,
@@ -479,7 +479,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                                 )
                               : Text(
                                   tr('auth.button.verify'),
-                                  style: AppTypography.buttonText,
+                                  style: AppTypography.buttonText(context),
                                 ),
                         ),
                       ),

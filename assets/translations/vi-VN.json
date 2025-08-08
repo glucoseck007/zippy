@@ -239,6 +239,7 @@
     "error": "Không thể tải chuyến",
     "refresh": "Làm mới",
     "order_code": "Mã đơn hàng",
+    "trip_code": "Mã chuyến đi",
     "created_at": "Ngày đặt",
     "view_progress": "Xem tiến trình",
     "receive_order": "Nhận hàng",
@@ -248,7 +249,14 @@
       "error": "Không thể quét mã QR. Vui lòng thử lại.",
       "invalid_code": "Mã QR không hợp lệ. Vui lòng kiểm tra và thử lại.",
       "permission_denied": "Cần quyền truy cập camera để quét mã QR",
-      "camera_error": "Lỗi camera. Vui lòng thử lại."
+      "camera_error": "Lỗi camera. Vui lòng thử lại.",
+      "confirm_title": "Đã quét mã QR",
+      "confirm_message": "Thông tin đơn hàng:",
+      "confirm": "Xác nhận",
+      "cancel": "Hủy",
+      "order_code": "Mã đơn hàng",
+      "trip_code": "Mã chuyến đi",
+      "timestamp": "Thời gian"
     },
     "confirm_pickup": {
       "title": "Xác nhận nhận hàng",
@@ -267,7 +275,7 @@
       "resend_success": "Mã được gửi thành công",
       "resend_failed": "Không thể gửi lại mã. Vui lòng thử lại.",
       "verification_failed": "Mã không hợp lệ. Vui lòng thử lại.",
-      "verification_success": "Nhận hàng thành công!",
+      "verification_success": "Xác thực thành công!",
       "network_error": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại."
     },
     "trip_details": {
@@ -284,13 +292,25 @@
       "error": "Không thể tải chi tiết chuyến đi",
       "not_found": "Không có thông tin chuyến đi"
     },
+    "trip_progress": {
+      "title": "Tiến trình giao hàng",
+      "loading": "Đang tải tiến trình...",
+      "error": "Không thể tải dữ liệu tiến trình",
+      "retry": "Thử lại",
+      "progress_label": "Tiến trình giao hàng",
+      "in_progress": "Robot của bạn đang trên đường!",
+      "completed": "Giao hàng hoàn tất!"
+    },
     "status": {
       "pending": "Đang chờ",
       "active": "Đang thực hiện",
       "completed": "Đã hoàn thành",
       "cancelled": "Đã hủy",
       "in_transit": "Đang vận chuyển",
-      "delivered": "Đã giao"
+      "delivered": "Đã đến nơi"
+    },
+    "common":{
+      "ok": "OK"
     }
   }
 }

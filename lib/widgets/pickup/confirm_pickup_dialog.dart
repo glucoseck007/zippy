@@ -2,16 +2,17 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
-import 'package:zippy/services/pickup/pickup_service.dart';
 import 'package:zippy/widgets/pickup/otp_verification_dialog.dart';
 
 class ConfirmPickupDialog extends StatefulWidget {
   final String orderCode;
+  final String tripCode;
   final VoidCallback onSuccess;
 
   const ConfirmPickupDialog({
     super.key,
     required this.orderCode,
+    required this.tripCode,
     required this.onSuccess,
   });
 
@@ -28,7 +29,7 @@ class _ConfirmPickupDialogState extends State<ConfirmPickupDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         tr('pickup.confirm_pickup.title'),
-        style: AppTypography.heading,
+        style: AppTypography.heading(context),
         textAlign: TextAlign.center,
       ),
       content: Column(
@@ -38,13 +39,15 @@ class _ConfirmPickupDialogState extends State<ConfirmPickupDialog> {
           const SizedBox(height: 16),
           Text(
             tr('pickup.confirm_pickup.message'),
-            style: AppTypography.bodyText,
+            style: AppTypography.bodyText(context),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
           Text(
             tr('pickup.confirm_pickup.order_code', args: [widget.orderCode]),
-            style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.bold),
+            style: AppTypography.bodyText(
+              context,
+            ).copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
         ],
@@ -54,7 +57,9 @@ class _ConfirmPickupDialogState extends State<ConfirmPickupDialog> {
           onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: Text(
             tr('pickup.confirm_pickup.cancel'),
-            style: AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+            style: AppTypography.bodyText(
+              context,
+            ).copyWith(color: Colors.grey[600]),
           ),
         ),
         ElevatedButton(
@@ -86,51 +91,20 @@ class _ConfirmPickupDialogState extends State<ConfirmPickupDialog> {
       _isLoading = true;
     });
 
-    try {
-      final response = await PickupService.sendOtp(widget.orderCode);
+    // Close confirm dialog and show OTP verification dialog
+    Navigator.pop(context);
 
-      if (mounted) {
-        if (response != null && response.success) {
-          Navigator.pop(context); // Close confirm dialog
-
-          // Show OTP verification dialog
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return OTPVerificationDialog(
-                orderCode: widget.orderCode,
-                onSuccess: widget.onSuccess,
-              );
-            },
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                response?.message ??
-                    tr('pickup.otp_verification.resend_failed'),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(tr('pickup.otp_verification.network_error')),
-            backgroundColor: Colors.red,
-          ),
+    // Show OTP verification dialog (which will handle sending the OTP)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return OTPVerificationDialog(
+          orderCode: widget.orderCode,
+          tripCode: widget.tripCode,
+          onSuccess: widget.onSuccess,
         );
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+      },
+    );
   }
 }

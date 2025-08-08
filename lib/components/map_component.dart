@@ -174,8 +174,8 @@ class _MapComponentState extends State<MapComponent> {
         Text(
           tr('booking.select_location'),
           style: isDarkMode
-              ? AppTypography.dmSubTitleText
-              : AppTypography.subTitleText,
+              ? AppTypography.dmSubTitleText(context)
+              : AppTypography.subTitleText(context),
         ),
         const SizedBox(height: 16),
         Stack(

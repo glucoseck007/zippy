@@ -171,15 +171,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     tr('auth.login'),
                     style: isDarkMode
-                        ? AppTypography.heading
-                        : AppTypography.dmHeading,
+                        ? AppTypography.heading(context)
+                        : AppTypography.dmHeading(context),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     tr('auth.login_subtitle'),
                     style: isDarkMode
-                        ? AppTypography.subTitleText
-                        : AppTypography.dmSubTitleText,
+                        ? AppTypography.subTitleText(context)
+                        : AppTypography.dmSubTitleText(context),
                   ),
                 ],
               ),
@@ -296,8 +296,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Text(
                               tr('auth.createAccount'),
                               style: isDarkMode
-                                  ? AppTypography.dmBodyText
-                                  : AppTypography.bodyText,
+                                  ? AppTypography.dmBodyText(context)
+                                  : AppTypography.bodyText(context),
                             ),
                             TextButton(
                               onPressed: () {

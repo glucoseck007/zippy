@@ -1,37 +1,66 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
+import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/services/pickup/pickup_service.dart';
 
-class OTPVerificationDialog extends StatefulWidget {
+class OTPVerificationDialog extends ConsumerStatefulWidget {
   final String orderCode;
+  final String tripCode;
   final VoidCallback onSuccess;
 
   const OTPVerificationDialog({
     super.key,
     required this.orderCode,
+    required this.tripCode,
     required this.onSuccess,
   });
 
   @override
-  State<OTPVerificationDialog> createState() => _OTPVerificationDialogState();
+  ConsumerState<OTPVerificationDialog> createState() =>
+      _OTPVerificationDialogState();
 }
 
-class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
-  final TextEditingController _otpController = TextEditingController();
+class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
+  String _otpValue = '';
   bool _isVerifying = false;
   bool _isResending = false;
   String _errorMessage = '';
 
   @override
+  void initState() {
+    super.initState();
+    // Automatically send OTP when dialog is first displayed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sendInitialOTP();
+    });
+  }
+
+  Future<void> _sendInitialOTP() async {
+    try {
+      await PickupService.sendOtp(widget.orderCode, widget.tripCode);
+    } catch (e) {
+      // If initial OTP sending fails, user can still use resend button
+      // We don't show an error here to avoid interrupting the dialog display
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
     return AlertDialog(
+      backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         tr('pickup.otp_verification.title'),
-        style: AppTypography.heading,
+        style: isDarkMode
+            ? AppTypography.dmHeading(context)
+            : AppTypography.heading(context),
         textAlign: TextAlign.center,
       ),
       content: SingleChildScrollView(
@@ -40,46 +69,94 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
           children: [
             Text(
               tr('pickup.otp_verification.message'),
-              style: AppTypography.bodyText,
+              style: isDarkMode
+                  ? AppTypography.dmBodyText(context)
+                  : AppTypography.bodyText(context),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
 
             // OTP Input Field
-            PinCodeTextField(
-              appContext: context,
-              length: 6,
-              controller: _otpController,
-              keyboardType: TextInputType.number,
-              animationType: AnimationType.fade,
-              pinTheme: PinTheme(
-                shape: PinCodeFieldShape.box,
-                borderRadius: BorderRadius.circular(8),
-                fieldHeight: 50,
-                fieldWidth: 45,
-                activeFillColor: Colors.white,
-                inactiveFillColor: Colors.grey[100],
-                selectedFillColor: Colors.grey[200],
-                activeColor: AppColors.buttonColor,
-                inactiveColor: Colors.grey[300],
-                selectedColor: AppColors.buttonColor,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: PinCodeTextField(
+                appContext: context,
+                length: 6,
+                keyboardType: TextInputType.number,
+                animationType: AnimationType.fade,
+                pinTheme: PinTheme(
+                  shape: PinCodeFieldShape.box,
+                  borderRadius: BorderRadius.circular(8),
+                  fieldHeight:
+                      MediaQuery.of(context).size.height *
+                      0.06, // Dynamic height
+                  fieldWidth:
+                      MediaQuery.of(context).size.width *
+                      0.08, // Even smaller width to prevent overflow
+                  activeFillColor: isDarkMode
+                      ? AppColors.dmInputColor
+                      : Colors.white,
+                  inactiveFillColor: isDarkMode
+                      ? AppColors.dmInputColor.withOpacity(0.5)
+                      : Colors.grey[100],
+                  selectedFillColor: isDarkMode
+                      ? AppColors.dmInputColor.withOpacity(0.8)
+                      : Colors.grey[200],
+                  activeColor: isDarkMode
+                      ? AppColors.dmButtonColor
+                      : AppColors.buttonColor,
+                  inactiveColor: isDarkMode
+                      ? Colors.grey[600]
+                      : Colors.grey[300],
+                  selectedColor: isDarkMode
+                      ? AppColors.dmButtonColor
+                      : AppColors.buttonColor,
+                ),
+                enableActiveFill: true,
+                cursorColor: isDarkMode
+                    ? AppColors.dmDefaultColor
+                    : AppColors.defaultColor,
+                textStyle: isDarkMode
+                    ? AppTypography.dmBodyText(context).copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize:
+                            MediaQuery.of(context).size.width *
+                            0.035, // Smaller font size for better fit
+                      )
+                    : AppTypography.bodyText(context).copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize:
+                            MediaQuery.of(context).size.width *
+                            0.035, // Smaller font size for better fit
+                      ),
+                onChanged: (value) {
+                  setState(() {
+                    _otpValue = value;
+                    _errorMessage = '';
+                  });
+                },
+                onCompleted: (value) {
+                  setState(() {
+                    _otpValue = value;
+                  });
+                  _verifyOTP();
+                },
               ),
-              enableActiveFill: true,
-              onChanged: (value) {
-                setState(() {
-                  _errorMessage = '';
-                });
-              },
-              onCompleted: (value) {
-                _verifyOTP();
-              },
             ),
 
             if (_errorMessage.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 _errorMessage,
-                style: AppTypography.bodyText.copyWith(color: Colors.red),
+                style:
+                    (isDarkMode
+                            ? AppTypography.dmBodyText(context)
+                            : AppTypography.bodyText(context))
+                        .copyWith(
+                          color: isDarkMode
+                              ? AppColors.dmRejectColor
+                              : AppColors.rejectColor,
+                        ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -93,9 +170,17 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
                 _isResending
                     ? tr('pickup.otp_verification.resending')
                     : tr('pickup.otp_verification.resend'),
-                style: AppTypography.bodyText.copyWith(
-                  color: _isResending ? Colors.grey : AppColors.buttonColor,
-                ),
+                style:
+                    (isDarkMode
+                            ? AppTypography.dmBodyText(context)
+                            : AppTypography.bodyText(context))
+                        .copyWith(
+                          color: _isResending
+                              ? (isDarkMode ? Colors.grey[600] : Colors.grey)
+                              : (isDarkMode
+                                    ? AppColors.dmButtonColor
+                                    : AppColors.buttonColor),
+                        ),
               ),
             ),
           ],
@@ -106,16 +191,25 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
           onPressed: _isVerifying ? null : () => Navigator.pop(context),
           child: Text(
             tr('pickup.confirm_pickup.cancel'),
-            style: AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+            style:
+                (isDarkMode
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context))
+                    .copyWith(
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
           ),
         ),
         ElevatedButton(
-          onPressed: _isVerifying || _otpController.text.length != 6
-              ? null
-              : _verifyOTP,
+          onPressed: _isVerifying || _otpValue.length != 6 ? null : _verifyOTP,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.buttonColor,
+            backgroundColor: isDarkMode
+                ? AppColors.dmButtonColor
+                : AppColors.buttonColor,
             foregroundColor: Colors.white,
+            disabledBackgroundColor: isDarkMode
+                ? Colors.grey[700]
+                : Colors.grey[300],
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -136,7 +230,7 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
   }
 
   Future<void> _verifyOTP() async {
-    if (_otpController.text.length != 6) {
+    if (_otpValue.length != 6) {
       setState(() {
         _errorMessage = tr('pickup.otp_verification.verification_failed');
       });
@@ -151,7 +245,8 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
     try {
       final response = await PickupService.verifyOtpAndComplete(
         widget.orderCode,
-        _otpController.text,
+        _otpValue,
+        widget.tripCode,
       );
 
       if (mounted) {
@@ -182,22 +277,48 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
       _isResending = true;
     });
 
+    final themeState = ref.watch(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
     try {
-      final response = await PickupService.sendOtp(widget.orderCode);
+      final response = await PickupService.sendOtp(
+        widget.orderCode,
+        widget.tripCode,
+      );
 
       if (mounted) {
         if (response != null && response.success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(tr('pickup.otp_verification.resend_success')),
-              backgroundColor: Colors.green,
+              content: Text(
+                tr('pickup.otp_verification.resend_success'),
+                style:
+                    (isDarkMode
+                            ? AppTypography.dmBodyText(context)
+                            : AppTypography.bodyText(context))
+                        .copyWith(color: Colors.white),
+              ),
+              backgroundColor: isDarkMode
+                  ? AppColors.dmSuccessColor
+                  : AppColors.successColor,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(tr('pickup.otp_verification.resend_failed')),
-              backgroundColor: Colors.red,
+              content: Text(
+                tr('pickup.otp_verification.resend_failed'),
+                style:
+                    (isDarkMode
+                            ? AppTypography.dmBodyText(context)
+                            : AppTypography.bodyText(context))
+                        .copyWith(color: Colors.white),
+              ),
+              backgroundColor: isDarkMode
+                  ? AppColors.dmRejectColor
+                  : AppColors.rejectColor,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -209,8 +330,18 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(tr('pickup.otp_verification.resend_failed')),
-            backgroundColor: Colors.red,
+            content: Text(
+              tr('pickup.otp_verification.resend_failed'),
+              style:
+                  (isDarkMode
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context))
+                      .copyWith(color: Colors.white),
+            ),
+            backgroundColor: isDarkMode
+                ? AppColors.dmRejectColor
+                : AppColors.rejectColor,
+            behavior: SnackBarBehavior.floating,
           ),
         );
         setState(() {
@@ -221,22 +352,34 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
   }
 
   void _showSuccessDialog() {
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 64),
+              Icon(
+                Icons.check_circle,
+                color: isDarkMode
+                    ? AppColors.dmSuccessColor
+                    : AppColors.successColor,
+                size: 64,
+              ),
               const SizedBox(height: 16),
               Text(
                 tr('pickup.otp_verification.verification_success'),
-                style: AppTypography.heading,
+                style: isDarkMode
+                    ? AppTypography.dmHeading(context)
+                    : AppTypography.heading(context),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -248,23 +391,19 @@ class _OTPVerificationDialogState extends State<OTPVerificationDialog> {
                 widget.onSuccess(); // Refresh the pickup screen
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.buttonColor,
+                backgroundColor: isDarkMode
+                    ? AppColors.dmButtonColor
+                    : AppColors.buttonColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: Text(tr('order.common.ok')),
+              child: Text(tr('pickup.common.ok')),
             ),
           ],
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _otpController.dispose();
-    super.dispose();
   }
 }

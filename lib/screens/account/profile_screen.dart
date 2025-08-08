@@ -87,7 +87,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SnackBar(
             content: Text(
               tr('profile.address_updated'),
-              style: AppTypography.bodyText.copyWith(
+              style: AppTypography.bodyText(context).copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
@@ -107,7 +107,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SnackBar(
             content: Text(
               'Failed to update profile: $e',
-              style: AppTypography.bodyText.copyWith(
+              style: AppTypography.bodyText(context).copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
@@ -139,8 +139,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         title: Text(
           tr('profile.personal_info'),
           style: isDarkMode
-              ? AppTypography.dmTitleText
-              : AppTypography.titleText,
+              ? AppTypography.dmTitleText(context)
+              : AppTypography.titleText(context),
         ),
         iconTheme: IconThemeData(
           color: isDarkMode ? AppColors.dmDefaultColor : AppColors.defaultColor,
@@ -196,8 +196,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               '$label:',
               style:
                   (isDarkMode
-                          ? AppTypography.dmSubTitleText
-                          : AppTypography.subTitleText)
+                          ? AppTypography.dmSubTitleText(context)
+                          : AppTypography.subTitleText(context))
                       .copyWith(
                         color: isDarkMode
                             ? AppColors.dmDefaultColor.withOpacity(0.8)
@@ -210,8 +210,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Text(
               value,
               style: isDarkMode
-                  ? AppTypography.dmSubTitleText
-                  : AppTypography.subTitleText,
+                  ? AppTypography.dmSubTitleText(context)
+                  : AppTypography.subTitleText(context),
             ),
           ),
         ],
@@ -233,8 +233,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               tr('auth.error'),
               style:
                   (isDarkMode
-                          ? AppTypography.dmSubTitleText
-                          : AppTypography.subTitleText)
+                          ? AppTypography.dmSubTitleText(context)
+                          : AppTypography.subTitleText(context))
                       .copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDarkMode
@@ -247,8 +247,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               error.toString(),
               style:
                   (isDarkMode
-                          ? AppTypography.dmBodyText
-                          : AppTypography.bodyText)
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context))
                       .copyWith(
                         color: isDarkMode
                             ? AppColors.dmRejectColor.withOpacity(0.9)
@@ -300,8 +300,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   tr('profile.personal_info'),
                   style: isDarkMode
-                      ? AppTypography.dmTitleText
-                      : AppTypography.titleText,
+                      ? AppTypography.dmTitleText(context)
+                      : AppTypography.titleText(context),
                 ),
                 const SizedBox(height: 16),
                 _buildInfoRow(
@@ -345,8 +345,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   tr('profile.contact_info'),
                   style: isDarkMode
-                      ? AppTypography.dmTitleText
-                      : AppTypography.titleText,
+                      ? AppTypography.dmTitleText(context)
+                      : AppTypography.titleText(context),
                 ),
                 const SizedBox(height: 16),
                 // Phone Number (editable)
@@ -387,8 +387,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   tr('profile.address_info'),
                   style: isDarkMode
-                      ? AppTypography.dmTitleText
-                      : AppTypography.titleText,
+                      ? AppTypography.dmTitleText(context)
+                      : AppTypography.titleText(context),
                 ),
                 const SizedBox(height: 16),
 
@@ -473,7 +473,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             child: Text(
               tr('profile.save_address'),
-              style: AppTypography.buttonText,
+              style: AppTypography.buttonText(context),
             ),
           ),
         ),

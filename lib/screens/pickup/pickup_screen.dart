@@ -1,14 +1,15 @@
+import 'dart:convert';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/models/response/order/order_list_response.dart';
-import 'package:zippy/models/response/trip/trip_response.dart';
 import 'package:zippy/providers/auth/auth_provider.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
 import 'package:zippy/screens/pickup/qr_scanner_screen.dart';
+import 'package:zippy/screens/pickup/trip_progress_screen.dart';
 import 'package:zippy/services/order/order_service.dart';
 import 'package:zippy/services/trip/trip_service.dart';
 import 'package:zippy/state/auth/auth_state.dart';
@@ -87,6 +88,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
       case 'pending':
         return tr('pickup.status.pending');
       case 'active':
+      case 'approved':
       case 'in_progress':
         return tr('pickup.status.active');
       case 'completed':
@@ -127,9 +129,10 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
       case 'active':
       case 'in_progress':
       case 'in_transit':
+      case 'approved':
+      case 'delivered':
         return Icons.local_shipping;
       case 'completed':
-      case 'delivered':
         return Icons.check_circle;
       case 'cancelled':
         return Icons.cancel;
@@ -139,11 +142,88 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
   }
 
   void _showTripProgress(OrderListItem order) {
+    _getTripCodeAndNavigate(order);
+  }
+
+  Future<void> _getTripCodeAndNavigate(OrderListItem order) async {
+    // Show loading indicator
     showDialog(
       context: context,
-      builder: (context) => _TripProgressDialog(
-        orderCode: order.orderCode,
-        onClose: () => Navigator.pop(context),
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final tripResponse = await TripService.getTripByOrderCode(
+        order.orderCode,
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        if (tripResponse != null &&
+            tripResponse.success &&
+            tripResponse.data != null) {
+          // Use the actual trip code from the API response
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TripProgressScreen(
+                tripCode: tripResponse.data!.tripCode,
+                orderCode: order.orderCode,
+              ),
+            ),
+          );
+        } else {
+          // Show error dialog if trip code cannot be retrieved
+          _showErrorDialog(
+            tripResponse?.message ?? 'Failed to retrieve trip information',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        _showErrorDialog('Network error: Failed to retrieve trip information');
+      }
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+        title: Text(
+          tr('pickup.error'),
+          style: isDarkMode
+              ? AppTypography.dmHeading(context)
+              : AppTypography.heading(context),
+        ),
+        content: Text(
+          message,
+          style: isDarkMode
+              ? AppTypography.dmBodyText(context)
+              : AppTypography.bodyText(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              tr('pickup.common.ok'),
+              style: isDarkMode
+                  ? AppTypography.dmBodyText(
+                      context,
+                    ).copyWith(color: AppColors.dmButtonColor)
+                  : AppTypography.bodyText(
+                      context,
+                    ).copyWith(color: AppColors.buttonColor),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -162,13 +242,23 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
   }
 
   void _onQRCodeScanned(OrderListItem order, String qrCode) {
-    // Validate QR code (you can add validation logic here)
+    // Parse QR code to extract tripCode
+    String tripCode = '';
+    try {
+      final parsedData = jsonDecode(qrCode);
+      tripCode = parsedData['tripCode'] ?? '';
+    } catch (e) {
+      // If JSON parsing fails, use empty tripCode
+      tripCode = '';
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return ConfirmPickupDialog(
           orderCode: order.orderCode,
+          tripCode: tripCode,
           onSuccess: () {
             _loadOrders(); // Refresh the orders list
           },
@@ -187,8 +277,12 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
         title: Text(
           tr('pickup.title'),
           style: isDarkMode
-              ? AppTypography.dmHeading.copyWith(fontWeight: FontWeight.w500)
-              : AppTypography.heading.copyWith(fontWeight: FontWeight.w500),
+              ? AppTypography.dmHeading(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500)
+              : AppTypography.heading(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500),
         ),
         actions: [
           IconButton(
@@ -216,8 +310,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
             Text(
               tr('pickup.loading'),
               style: isDarkMode
-                  ? AppTypography.dmBodyText
-                  : AppTypography.bodyText,
+                  ? AppTypography.dmBodyText(context)
+                  : AppTypography.bodyText(context),
             ),
           ],
         ),
@@ -242,8 +336,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                 textAlign: TextAlign.center,
                 style:
                     (isDarkMode
-                            ? AppTypography.dmSubTitleText
-                            : AppTypography.subTitleText)
+                            ? AppTypography.dmSubTitleText(context)
+                            : AppTypography.subTitleText(context))
                         .copyWith(color: Colors.red),
               ),
               const SizedBox(height: 24),
@@ -277,16 +371,20 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
               Text(
                 tr('pickup.empty_state.title'),
                 style: isDarkMode
-                    ? AppTypography.dmSubTitleText
-                    : AppTypography.subTitleText,
+                    ? AppTypography.dmSubTitleText(context)
+                    : AppTypography.subTitleText(context),
               ),
               const SizedBox(height: 8),
               Text(
                 tr('pickup.empty_state.message'),
                 textAlign: TextAlign.center,
                 style: isDarkMode
-                    ? AppTypography.dmBodyText.copyWith(color: Colors.grey[400])
-                    : AppTypography.bodyText.copyWith(color: Colors.grey[600]),
+                    ? AppTypography.dmBodyText(
+                        context,
+                      ).copyWith(color: Colors.grey[400])
+                    : AppTypography.bodyText(
+                        context,
+                      ).copyWith(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -346,8 +444,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                         '${tr('pickup.order_code')}: ${order.orderCode}',
                         style:
                             (isDarkMode
-                                    ? AppTypography.dmSubTitleText
-                                    : AppTypography.subTitleText)
+                                    ? AppTypography.dmSubTitleText(context)
+                                    : AppTypography.subTitleText(context))
                                 .copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -355,20 +453,20 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                         Text(
                           '${tr('pickup.created_at')}: ${DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt!)}',
                           style: isDarkMode
-                              ? AppTypography.dmBodyText.copyWith(
-                                  color: Colors.grey[400],
-                                )
-                              : AppTypography.bodyText.copyWith(
-                                  color: Colors.grey[600],
-                                ),
+                              ? AppTypography.dmBodyText(
+                                  context,
+                                ).copyWith(color: Colors.grey[400])
+                              : AppTypography.bodyText(
+                                  context,
+                                ).copyWith(color: Colors.grey[600]),
                         ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MediaQuery.of(context).size.width * 0.02,
+                    vertical: MediaQuery.of(context).size.height * 0.01,
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
@@ -387,8 +485,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                         _translateOrderStatus(order.status),
                         style:
                             (isDarkMode
-                                    ? AppTypography.dmBodyText
-                                    : AppTypography.bodyText)
+                                    ? AppTypography.dmBodyText(context)
+                                    : AppTypography.bodyText(context))
                                 .copyWith(
                                   color: statusColor,
                                   fontWeight: FontWeight.w600,
@@ -415,19 +513,19 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                 Text(
                   '${tr('booking.product_label')}: ',
                   style: isDarkMode
-                      ? AppTypography.dmBodyText.copyWith(
-                          fontWeight: FontWeight.w500,
-                        )
-                      : AppTypography.bodyText.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                      ? AppTypography.dmBodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500)
+                      : AppTypography.bodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500),
                 ),
                 Expanded(
                   child: Text(
                     order.productName,
                     style: isDarkMode
-                        ? AppTypography.dmBodyText
-                        : AppTypography.bodyText,
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context),
                   ),
                 ),
               ],
@@ -446,19 +544,19 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                 Text(
                   '${tr('booking.room_label')}: ',
                   style: isDarkMode
-                      ? AppTypography.dmBodyText.copyWith(
-                          fontWeight: FontWeight.w500,
-                        )
-                      : AppTypography.bodyText.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                      ? AppTypography.dmBodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500)
+                      : AppTypography.bodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500),
                 ),
                 Expanded(
                   child: Text(
                     order.endpoint,
                     style: isDarkMode
-                        ? AppTypography.dmBodyText
-                        : AppTypography.bodyText,
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context),
                   ),
                 ),
               ],
@@ -477,19 +575,19 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                 Text(
                   '${tr('booking.robot_label')}: ',
                   style: isDarkMode
-                      ? AppTypography.dmBodyText.copyWith(
-                          fontWeight: FontWeight.w500,
-                        )
-                      : AppTypography.bodyText.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                      ? AppTypography.dmBodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500)
+                      : AppTypography.bodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500),
                 ),
                 Expanded(
                   child: Text(
                     order.robotCode,
                     style: isDarkMode
-                        ? AppTypography.dmBodyText
-                        : AppTypography.bodyText,
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context),
                   ),
                 ),
               ],
@@ -531,270 +629,6 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _TripProgressDialog extends ConsumerStatefulWidget {
-  final String orderCode;
-  final VoidCallback onClose;
-
-  const _TripProgressDialog({required this.orderCode, required this.onClose});
-
-  @override
-  ConsumerState<_TripProgressDialog> createState() =>
-      _TripProgressDialogState();
-}
-
-class _TripProgressDialogState extends ConsumerState<_TripProgressDialog> {
-  bool _isLoading = true;
-  bool _hasError = false;
-  String? _errorMessage;
-  TripData? _tripData;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTripData();
-  }
-
-  Future<void> _loadTripData() async {
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-      _errorMessage = null;
-    });
-
-    try {
-      final response = await TripService.getTripByOrderCode(widget.orderCode);
-
-      if (mounted) {
-        if (response != null && response.success && response.data != null) {
-          setState(() {
-            _tripData = response.data;
-            _isLoading = false;
-          });
-        } else {
-          setState(() {
-            _hasError = true;
-            _errorMessage =
-                response?.message ?? tr('pickup.trip_details.error');
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = tr('pickup.trip_details.error');
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  String _translateTripStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return tr('pickup.status.pending');
-      case 'active':
-      case 'in_progress':
-        return tr('pickup.status.active');
-      case 'completed':
-        return tr('pickup.status.completed');
-      case 'cancelled':
-        return tr('pickup.status.cancelled');
-      case 'in_transit':
-        return tr('pickup.status.in_transit');
-      case 'delivered':
-        return tr('pickup.status.delivered');
-      default:
-        return status;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'active':
-      case 'in_progress':
-      case 'in_transit':
-        return Colors.blue;
-      case 'completed':
-      case 'delivered':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final themeState = ref.watch(themeProvider);
-    bool isDarkMode = themeState.isDarkMode;
-
-    return AlertDialog(
-      title: Text(tr('pickup.trip_details.title')),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: _buildDialogContent(isDarkMode),
-      ),
-      actions: [
-        TextButton(
-          onPressed: widget.onClose,
-          child: Text(tr('booking.common.ok')),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDialogContent(bool isDarkMode) {
-    if (_isLoading) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(tr('pickup.trip_details.loading')),
-        ],
-      );
-    }
-
-    if (_hasError || _tripData == null) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 48,
-            color: Colors.red.withOpacity(0.7),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _errorMessage ?? tr('pickup.trip_details.not_found'),
-            textAlign: TextAlign.center,
-            style: isDarkMode
-                ? AppTypography.dmBodyText.copyWith(color: Colors.red)
-                : AppTypography.bodyText.copyWith(color: Colors.red),
-          ),
-        ],
-      );
-    }
-
-    final trip = _tripData!;
-    final statusColor = _getStatusColor(trip.status);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow(
-          tr('pickup.trip_details.trip_code'),
-          trip.tripCode,
-          isDarkMode,
-        ),
-        const SizedBox(height: 12),
-        _buildDetailRow(
-          tr('pickup.trip_details.end_point'),
-          trip.endPoint,
-          isDarkMode,
-        ),
-        const SizedBox(height: 12),
-        _buildDetailRow(
-          tr('pickup.trip_details.robot_code'),
-          trip.robotCode,
-          isDarkMode,
-        ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${tr('pickup.trip_details.status')}: ',
-              style: isDarkMode
-                  ? AppTypography.dmBodyText.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )
-                  : AppTypography.bodyText.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: statusColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                _translateTripStatus(trip.status),
-                style:
-                    (isDarkMode
-                            ? AppTypography.dmBodyText
-                            : AppTypography.bodyText)
-                        .copyWith(
-                          color: statusColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-              ),
-            ),
-          ],
-        ),
-        if (trip.startTime != null) ...[
-          const SizedBox(height: 12),
-          _buildDetailRow(
-            tr('pickup.trip_details.start_time'),
-            DateFormat('dd/MM/yyyy HH:mm:ss').format(trip.startTime!),
-            isDarkMode,
-          ),
-        ],
-        if (trip.endTime != null) ...[
-          const SizedBox(height: 12),
-          _buildDetailRow(
-            tr('pickup.trip_details.end_time'),
-            DateFormat('dd/MM/yyyy HH:mm:ss').format(trip.endTime!),
-            isDarkMode,
-          ),
-        ],
-        if (trip.estimatedArrival != null) ...[
-          const SizedBox(height: 12),
-          _buildDetailRow(
-            tr('pickup.trip_details.estimated_arrival'),
-            trip.estimatedArrival!,
-            isDarkMode,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, bool isDarkMode) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$label: ',
-          style: isDarkMode
-              ? AppTypography.dmBodyText.copyWith(fontWeight: FontWeight.w600)
-              : AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: isDarkMode
-                ? AppTypography.dmBodyText
-                : AppTypography.bodyText,
-          ),
-        ),
-      ],
     );
   }
 }

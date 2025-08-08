@@ -279,15 +279,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     Text(
                       tr('auth.signup'),
                       style: isDarkMode
-                          ? AppTypography.heading
-                          : AppTypography.dmHeading,
+                          ? AppTypography.heading(context)
+                          : AppTypography.dmHeading(context),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       tr('auth.signup_subtitle'),
                       style: isDarkMode
-                          ? AppTypography.subTitleText
-                          : AppTypography.dmSubTitleText,
+                          ? AppTypography.subTitleText(context)
+                          : AppTypography.dmSubTitleText(context),
                     ),
                   ],
                 ),
@@ -423,8 +423,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 child: Text(
                                   tr('auth.checkbox.agree_terms'),
                                   style: isDarkMode
-                                      ? AppTypography.dmBodyText
-                                      : AppTypography.bodyText,
+                                      ? AppTypography.dmBodyText(context)
+                                      : AppTypography.bodyText(context),
                                 ),
                               ),
                             ],
@@ -466,8 +466,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               Text(
                                 tr('auth.haveAccount'),
                                 style: isDarkMode
-                                    ? AppTypography.dmBodyText
-                                    : AppTypography.bodyText,
+                                    ? AppTypography.dmBodyText(context)
+                                    : AppTypography.bodyText(context),
                               ),
                               TextButton(
                                 onPressed: () {

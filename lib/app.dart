@@ -54,8 +54,8 @@ class _MyAppState extends ConsumerState<MyApp> {
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       themeMode: theme.themeMode,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightThemeFallback,
+      darkTheme: AppTheme.darkThemeFallback,
       locale: language.locale,
       supportedLocales: context.supportedLocales,
       localizationsDelegates: [

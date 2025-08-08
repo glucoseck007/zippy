@@ -239,6 +239,7 @@
     "error": "Failed to load orders",
     "refresh": "Refresh",
     "order_code": "Order Code",
+    "trip_code": "Trip Code",
     "created_at": "Order Date",
     "view_progress": "View Progress",
     "receive_order": "Receive Order",
@@ -248,7 +249,14 @@
       "error": "Failed to scan QR code. Please try again.",
       "invalid_code": "Invalid QR code. Please check and try again.",
       "permission_denied": "Camera permission is required to scan QR codes",
-      "camera_error": "Camera error occurred. Please try again."
+      "camera_error": "Camera error occurred. Please try again.",
+      "confirm_title": "QR Code Scanned",
+      "confirm_message": "Order details found:",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "order_code": "Order Code",
+      "trip_code": "Trip Code",
+      "timestamp": "Timestamp"
     },
     "confirm_pickup": {
       "title": "Confirm Pickup",
@@ -267,7 +275,7 @@
       "resend_success": "Code sent successfully",
       "resend_failed": "Failed to resend code. Please try again.",
       "verification_failed": "Invalid code. Please try again.",
-      "verification_success": "Order received successfully!",
+      "verification_success": "Verify successfully!",
       "network_error": "Network error. Please check your connection and try again."
     },
     "trip_details": {
@@ -284,6 +292,15 @@
       "error": "Failed to load trip details",
       "not_found": "Trip details not available"
     },
+    "trip_progress": {
+      "title": "Trip Progress",
+      "loading": "Loading progress...",
+      "error": "Failed to load progress data",
+      "retry": "Retry",
+      "progress_label": "Delivery Progress",
+      "in_progress": "Your robot is on the way!",
+      "completed": "Delivery completed!"
+    },
     "status": {
       "pending": "Pending",
       "active": "In Progress",
@@ -291,6 +308,9 @@
       "cancelled": "Cancelled",
       "in_transit": "In Transit",
       "delivered": "Delivered"
+    },
+    "common":{
+      "ok": "OK"
     }
   }
 }
