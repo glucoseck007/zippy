@@ -92,6 +92,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
       case 'in_progress':
         return tr('pickup.status.active');
       case 'completed':
+      case 'finished':
         return tr('pickup.status.completed');
       case 'cancelled':
         return tr('pickup.status.cancelled');
