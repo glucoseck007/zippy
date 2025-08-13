@@ -77,7 +77,7 @@ class AuthService {
     final refreshToken = await SecureStorage.getRefreshToken();
     if (refreshToken == null) return false;
 
-    final response = await ApiClient.post('/auth/refresh-token', {
+    final response = await ApiClient.refreshTokenPost('/auth/refresh-token', {
       'refreshToken': refreshToken,
     });
 

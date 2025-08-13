@@ -7,11 +7,18 @@ import 'package:zippy/state/auth/auth_state.dart';
 import 'package:zippy/utils/secure_storage.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
+  bool _isRefreshing = false;
+  bool _isInit = false;
+
+  bool get isInit => _isInit;
+
   AuthNotifier() : super(const AuthState.unknown()) {
     checkAuth();
   }
 
   Future<void> checkAuth() async {
+    if (_isInit) return; // Avoid re-initialization
+    _isInit = true;
     final token = await SecureStorage.getAccessToken();
     if (token != null) {
       final valid = !JwtDecoder.isExpired(token);
@@ -70,26 +77,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Refresh the access token using the refresh token
   Future<bool> _refreshToken() async {
     try {
-      final refreshToken = await SecureStorage.getRefreshToken();
-      if (refreshToken == null) {
-        print('No refresh token found');
+      if (_isRefreshing) {
+        // Already refreshing, avoid duplicate calls
+        while (_isRefreshing) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
         return false;
       }
-
-      // Check if refresh token is expired
-      if (JwtDecoder.isExpired(refreshToken)) {
-        print('Refresh token is expired');
-        await SecureStorage.clearTokens();
-        return false;
-      }
-
+      _isRefreshing = true;
       // Call refresh token API
       final success = await AuthService.refreshAccessToken();
       if (success) {
-        print('Token refreshed successfully');
+        // print('Token refreshed successfully');
         return true;
       } else {
-        print('Failed to refresh token');
+        // print('Failed to refresh token');
         await SecureStorage.clearTokens();
         return false;
       }
@@ -124,20 +126,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       print('Error extracting user from JWT: $e');
       return null;
     }
-  }
-
-  /// Public method to manually refresh token
-  Future<bool> refreshToken() async {
-    final success = await _refreshToken();
-    if (success) {
-      // Update auth state with new token
-      final newToken = await SecureStorage.getAccessToken();
-      if (newToken != null) {
-        final user = _extractUserFromJwt(newToken);
-        state = AuthState.authenticated(user: user);
-      }
-    }
-    return success;
   }
 
   /// Get current user

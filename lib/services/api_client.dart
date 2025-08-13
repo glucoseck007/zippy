@@ -72,6 +72,18 @@ class ApiClient {
     });
   }
 
+  static Future<http.Response> refreshTokenPost(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
+    return await http.post(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: {'Content-Type': 'application/json', ...?headers},
+      body: jsonEncode(body),
+    );
+  }
+
   static Future<http.Response> get(
     String endpoint, {
     Map<String, String>? headers,

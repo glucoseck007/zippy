@@ -106,8 +106,11 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
   }
 
   Future<void> _initializeAuth() async {
-    // This is already done in AuthNotifier constructor, so it's optional
-    await ref.read(authProvider.notifier).checkAuth();
+    final authNotifier = ref.read(authProvider.notifier);
+
+    if (!authNotifier.isInit) {
+      await ref.read(authProvider.notifier).checkAuth();
+    }
   }
 
   @override
