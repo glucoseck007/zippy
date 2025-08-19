@@ -21,27 +21,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _isInit = true;
     final token = await SecureStorage.getAccessToken();
     if (token != null) {
-      final valid = !JwtDecoder.isExpired(token);
-      if (valid) {
-        // Token is valid, extract user information
-        final user = _extractUserFromJwt(token);
-        state = AuthState.authenticated(user: user);
-        return;
-      } else {
-        // Token is expired, try to refresh it
-        print('Access token expired, attempting to refresh...');
-        final refreshSuccess = await _refreshToken();
-        if (refreshSuccess) {
-          // Successfully refreshed, extract user from new token
-          final newToken = await SecureStorage.getAccessToken();
-          if (newToken != null) {
-            final user = _extractUserFromJwt(newToken);
-            state = AuthState.authenticated(user: user);
-            return;
+      try {
+        final valid = !JwtDecoder.isExpired(token);
+        if (valid) {
+          // Token is valid, extract user information
+          final user = _extractUserFromJwt(token);
+          state = AuthState.authenticated(user: user);
+          return;
+        } else {
+          // Token is expired, try to refresh it
+          final refreshSuccess = await _refreshToken();
+          if (refreshSuccess) {
+            // Successfully refreshed, extract user from new token
+            final newToken = await SecureStorage.getAccessToken();
+            if (newToken != null) {
+              final user = _extractUserFromJwt(newToken);
+              state = AuthState.authenticated(user: user);
+              return;
+            }
           }
         }
-        // Refresh failed, user needs to log in again
-        print('Token refresh failed, user needs to log in again');
+      } catch (e) {
+        state = AuthState.unauthenticated("Invalid token format");
       }
     }
     state = const AuthState.unauthenticated();

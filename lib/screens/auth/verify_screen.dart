@@ -1,22 +1,28 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zippy/constants/screen_size.dart';
 import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
+import 'package:zippy/models/request/auth/login_request.dart';
+import 'package:zippy/providers/auth/auth_provider.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/home.dart';
 import 'package:zippy/services/auth/auth_service.dart';
 
 class VerifyScreen extends ConsumerStatefulWidget {
   final String email;
+  final String password;
+  final bool autoSendOtp; // Whether to automatically send OTP on screen load
 
-  const VerifyScreen({super.key, required this.email});
+  const VerifyScreen({
+    super.key,
+    required this.email,
+    required this.password,
+    this.autoSendOtp = true, // Default to true for backward compatibility
+  });
 
   @override
   ConsumerState<VerifyScreen> createState() => _VerifyScreenState();
@@ -41,8 +47,10 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     super.initState();
     startTimer();
 
-    // Automatically send OTP when the screen loads
-    _sendInitialOTP();
+    // Only automatically send OTP if autoSendOtp is true
+    if (widget.autoSendOtp) {
+      _sendInitialOTP();
+    }
 
     // Set up focus changes
     for (int i = 0; i < 6; i++) {
@@ -156,29 +164,42 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     });
 
     try {
-      // Call API to verify code
-      final uri = Uri.parse(
-        '${dotenv.env['BACKEND_API_ENDPOINT']}/auth/verify-otp',
-      );
-      final body = jsonEncode({'credential': widget.email, 'otp': code});
-
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: body,
-      );
+      // Call AuthService to verify OTP
+      final statusCode = await AuthService.verifyOTP(widget.email, code);
 
       if (mounted) {
-        if (response.statusCode == 200) {
-          // Verification successful, navigate to home
-          Navigator.of(context).pushReplacement(
+        if (statusCode == 200) {
+          await ref
+              .read(authProvider.notifier)
+              .login(
+                LoginRequest(
+                  credential: widget.email,
+                  password: widget.password,
+                ),
+              );
+          // Navigate to home screen on success
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
           );
         } else {
-          // Show error message
-          final errorData = jsonDecode(response.body);
-          final errorMsg =
-              errorData['message'] ?? tr('auth.verification_failed');
+          // Show error message based on status code
+          String errorMsg;
+          switch (statusCode) {
+            case 400:
+              errorMsg = tr('auth.invalid_otp');
+              break;
+            case 404:
+              errorMsg = tr('auth.user_not_found');
+              break;
+            case 410:
+              errorMsg = tr('auth.otp_expired');
+              break;
+            default:
+              errorMsg = tr('auth.verification_failed');
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(errorMsg), duration: Duration(seconds: 3)),
           );
@@ -374,12 +395,12 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                         Text(
                           tr('auth.verification_code'),
                           style: isDarkMode
-                              ? AppTypography.dmBodyText(context).copyWith(
-                                  fontWeight: FontWeight.bold,
-                                )
-                              : AppTypography.bodyText(context).copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              ? AppTypography.dmBodyText(
+                                  context,
+                                ).copyWith(fontWeight: FontWeight.bold)
+                              : AppTypography.bodyText(
+                                  context,
+                                ).copyWith(fontWeight: FontWeight.bold),
                         ),
                         TextButton(
                           onPressed: _secondsRemaining == 0 ? resendCode : null,

@@ -33,6 +33,9 @@
     "verification_subtitle": "Chúng tôi đã gửi mã xác thực đến email của bạn",
     "verification_code": "MÃ XÁC THỰC",
     "verification_failed": "Xác thực thất bại. Vui lòng kiểm tra mã và thử lại.",
+    "invalid_otp": "Mã xác thực không hợp lệ. Vui lòng kiểm tra và thử lại.",
+    "user_not_found": "Không tìm thấy người dùng. Vui lòng kiểm tra địa chỉ email.",
+    "otp_expired": "Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.",
     "resend_in": "Gửi lại sau {0}",
     "input": {
       "email": "Email",
@@ -243,6 +246,15 @@
     "created_at": "Ngày đặt",
     "view_progress": "Xem tiến trình",
     "receive_order": "Nhận hàng",
+    "pay_order": "Thanh toán",
+    "payment": {
+      "title": "Xác nhận thanh toán",
+      "message": "Tiến hành thanh toán cho đơn hàng:",
+      "cancel": "Hủy",
+      "confirm": "Thanh toán ngay",
+      "success_title": "Thanh toán thành công",
+      "success_message": "Thanh toán của bạn đã được xử lý thành công!"
+    },
     "qr_scan": {
       "title": "Quét mã QR",
       "instruction": "Đặt mã QR trong khung để quét",

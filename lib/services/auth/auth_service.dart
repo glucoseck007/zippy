@@ -44,6 +44,26 @@ class AuthService {
     }
   }
 
+  ///Verify OTP for account verification
+  static Future<int> verifyOTP(String credential, String otp) async {
+    final response = await ApiClient.post('/auth/verify-otp', {
+      'credential': credential,
+      'otp': otp,
+    });
+
+    if (response.statusCode == 200) {
+      final responseData = ApiResponse.fromJson(response.body);
+      final authData = AuthResponse.fromJson(responseData.data);
+      await SecureStorage.saveTokens(
+        authData.accessToken,
+        authData.refreshToken,
+      );
+      return 200; // Success
+    } else {
+      return response.statusCode; // Return error code
+    }
+  }
+
   ///Register user with credential, password and user data
   ///Returns true if registration is successful
   static Future<bool> register(RegisterRequest userData) async {

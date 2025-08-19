@@ -33,6 +33,9 @@
     "verification_subtitle": "We have sent a code to your email",
     "verification_code": "CODE",
     "verification_failed": "Verification failed. Please check your code and try again.",
+    "invalid_otp": "Invalid verification code. Please check and try again.",
+    "user_not_found": "User not found. Please check your email address.",
+    "otp_expired": "Verification code has expired. Please request a new one.",
     "resend_in": "Resend in {0}",
     "input": {
       "email": "Email",
@@ -243,6 +246,15 @@
     "created_at": "Order Date",
     "view_progress": "View Progress",
     "receive_order": "Receive Order",
+    "pay_order": "Pay",
+    "payment": {
+      "title": "Payment Confirmation",
+      "message": "Proceed with payment for order:",
+      "cancel": "Cancel",
+      "confirm": "Pay Now",
+      "success_title": "Payment Successful",
+      "success_message": "Your payment has been processed successfully!"
+    },
     "qr_scan": {
       "title": "Scan QR Code",
       "instruction": "Position the QR code within the frame to scan",

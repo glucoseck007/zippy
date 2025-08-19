@@ -268,6 +268,124 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
     );
   }
 
+  void _handlePayOrder(OrderListItem order) {
+    // Show payment dialog
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            tr('pickup.payment.title'),
+            style: isDarkMode
+                ? AppTypography.dmHeading(context)
+                : AppTypography.heading(context),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.payment, size: 60, color: Colors.blue),
+              const SizedBox(height: 16),
+              Text(
+                '${tr('pickup.payment.message')}\n${order.orderCode}',
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                tr('pickup.payment.cancel'),
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(
+                        context,
+                      ).copyWith(color: Colors.grey)
+                    : AppTypography.bodyText(
+                        context,
+                      ).copyWith(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _processPayment(order);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(tr('pickup.payment.confirm')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _processPayment(OrderListItem order) {
+    // TODO: Implement actual payment processing
+    // For now, show a success message
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            tr('pickup.payment.success_title'),
+            style: isDarkMode
+                ? AppTypography.dmHeading(context)
+                : AppTypography.heading(context),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, size: 60, color: Colors.green),
+              const SizedBox(height: 16),
+              Text(
+                tr('pickup.payment.success_message'),
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _loadOrders(); // Refresh orders after payment
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(tr('pickup.common.ok')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeState = ref.watch(themeProvider);
@@ -596,7 +714,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
 
             const SizedBox(height: 16),
 
-            // Action button (View Progress or Receive Order)
+            // Action button (View Progress, Receive Order, or Pay)
             SizedBox(
               width: double.infinity,
               child: order.status.toLowerCase() == 'delivered'
@@ -606,6 +724,21 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                       label: Text(tr('pickup.receive_order')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    )
+                  : order.status.toLowerCase() == 'finished' ||
+                        order.status.toLowerCase() == 'completed'
+                  ? ElevatedButton.icon(
+                      onPressed: () => _handlePayOrder(order),
+                      icon: const Icon(Icons.payment, size: 18),
+                      label: Text(tr('pickup.pay_order')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

@@ -86,7 +86,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (mounted) {
           NavigationManager.navigateToWithSlideTransition(
             context,
-            VerifyScreen(email: _emailController.text.trim()),
+            VerifyScreen(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+              autoSendOtp:
+                  false, // Don't auto-send since registration sends OTP
+            ),
           );
         }
       } else if (resp.statusCode == 500) {
@@ -191,7 +196,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               if (mounted) {
                 NavigationManager.navigateToWithSlideTransition(
                   context,
-                  VerifyScreen(email: email),
+                  VerifyScreen(
+                    email: email,
+                    password: _passwordController.text.trim(),
+                    autoSendOtp: false, // Don't auto-send since we just sent it
+                  ),
                 );
               }
             },
@@ -478,78 +487,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                   style: TextStyle(
                                     color: AppColors.buttonColor,
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Social Login Separator
-                          SizedBox(
-                            width: double.infinity,
-                            child: Center(
-                              child: Text(
-                                tr('auth.or'),
-                                style: TextStyle(color: Colors.grey[600]),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Social Login Buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: const BoxDecoration(
-                                  color: Colors.blue,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.facebook,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    // Handle Facebook signup
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: const BoxDecoration(
-                                  color: Colors.lightBlue,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.alarm, // Placeholder for Twitter
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    // Handle Twitter signup
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: const BoxDecoration(
-                                  color: Colors.black,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.apple,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    // Handle Apple signup
-                                  },
                                 ),
                               ),
                             ],

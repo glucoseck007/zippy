@@ -118,7 +118,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // Navigate to verify screen with the credential as email
           NavigationManager.navigateToWithSlideTransition(
             context,
-            VerifyScreen(email: credential),
+            VerifyScreen(
+              email: credential,
+              password: _passwordController.text.trim(),
+            ),
           );
         } else {
           _showErrorDialog(e.toString());

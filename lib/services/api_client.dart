@@ -41,7 +41,7 @@ class ApiClient {
     final response = await apiCall();
 
     // If unauthorized, try to refresh token and retry once
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
       print('ApiClient: Received 401, attempting token refresh...');
 
       final refreshSuccess = await AuthService.refreshAccessToken();
