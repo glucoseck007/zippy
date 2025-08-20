@@ -3,8 +3,15 @@ class User {
   final String username;
   final String? email;
   final bool? isVerified;
+  final String? role;
 
-  User({this.id, required this.username, this.email, this.isVerified});
+  User({
+    this.id,
+    required this.username,
+    this.email,
+    this.isVerified,
+    this.role,
+  });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -12,6 +19,7 @@ class User {
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       isVerified: json['isVerified'] ?? false,
+      role: json['role'] ?? '',
     );
   }
 
@@ -21,6 +29,7 @@ class User {
       'username': username,
       'email': email,
       'isVerified': isVerified,
+      'role': role,
     };
   }
 
@@ -29,6 +38,7 @@ class User {
       username: payload['sub'] ?? '', // From .setSubject()
       email: payload['email'] ?? '', // From extraClaims
       isVerified: payload['status'] == 'ACTIVE', // From extraClaims
+      role: payload['role'] ?? '', // From extraClaims
     );
   }
 }

@@ -71,7 +71,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await SecureStorage.clearTokens();
+    try {
+      // Call server logout API and clear local tokens
+      await AuthService.logout();
+    } catch (e) {
+      print('Error during logout: $e');
+      // Ensure tokens are cleared even if logout fails
+      await SecureStorage.clearTokens();
+    }
+
+    // Update state to unauthenticated
     state = const AuthState.unauthenticated();
   }
 
@@ -120,8 +129,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final String? email = decodedToken['email'];
       final bool? isVerified =
           decodedToken['isVerified'] ?? decodedToken['email_verified'];
+      final String? role = decodedToken['role'];
 
-      return User(username: username, email: email, isVerified: isVerified);
+      return User(
+        username: username,
+        email: email,
+        isVerified: isVerified,
+        role: role,
+      );
     } catch (e) {
       // If there's an error decoding, log it and return null
       print('Error extracting user from JWT: $e');

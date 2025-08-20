@@ -324,5 +324,35 @@
     "common":{
       "ok": "OK"
     }
+  },
+  "staff": {
+    "services": {
+      "robots": "Robot",
+      "orders": "Đơn hàng"
+    },
+    "robots": {
+      "title": "Quản lý Robot",
+      "status": {
+        "online": "Trực tuyến",
+        "offline": "Ngoại tuyến",
+        "busy": "Bận",
+        "maintenance": "Bảo trì"
+      }
+    },
+    "orders": {
+      "title": "Quản lý đơn hàng",
+      "assign_robot": "Gán robot",
+      "assign_robot_title": "Gán robot", 
+      "assign_robot_message": "Chọn robot cho đơn hàng:",
+      "approve": "Phê duyệt",
+      "approve_order": "Phê duyệt đơn hàng",
+      "approve_confirmation": "Bạn có chắc chắn muốn phê duyệt đơn hàng",
+      "no_orders": "Không tìm thấy đơn hàng"
+    }
+  },
+  "common": {
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "ok": "OK"
   }
 }

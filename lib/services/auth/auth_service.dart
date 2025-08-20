@@ -114,4 +114,26 @@ class AuthService {
     await SecureStorage.clearTokens();
     return false;
   }
+
+  ///Logout user and invalidate tokens on server
+  static Future<bool> logout() async {
+    try {
+      final response = await ApiClient.post('/auth/logout', {});
+
+      // Clear local tokens regardless of server response
+      await SecureStorage.clearTokens();
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        print('Logout API failed with status: ${response.statusCode}');
+        return false; // Still return false if server logout failed, but tokens are cleared
+      }
+    } catch (e) {
+      print('Error during logout API call: $e');
+      // Clear local tokens even if API call fails
+      await SecureStorage.clearTokens();
+      return false;
+    }
+  }
 }

@@ -324,5 +324,35 @@
     "common":{
       "ok": "OK"
     }
+  },
+  "staff": {
+    "services": {
+      "robots": "Robots",
+      "orders": "Orders"
+    },
+    "robots": {
+      "title": "Robot Management",
+      "status": {
+        "online": "Online",
+        "offline": "Offline",
+        "busy": "Busy",
+        "maintenance": "Maintenance"
+      }
+    },
+    "orders": {
+      "title": "Orders Management",
+      "assign_robot": "Assign Robot",
+      "assign_robot_title": "Assign Robot",
+      "assign_robot_message": "Select a robot for order:",
+      "approve": "Approve",
+      "approve_order": "Approve Order",
+      "approve_confirmation": "Are you sure you want to approve order",
+      "no_orders": "No orders found"
+    }
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "ok": "OK"
   }
 }

@@ -9,6 +9,8 @@ import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
 import 'package:zippy/screens/payment/payment_screen.dart';
 import 'package:zippy/screens/pickup/pickup_screen.dart';
+import 'package:zippy/screens/staff/robots_screen.dart';
+import 'package:zippy/screens/staff/orders_management_screen.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import '../design/app_typography.dart';
 import '../design/app_colors.dart';
@@ -47,52 +49,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<ServiceItem> services = [
-      ServiceItem(
-        text: tr('home.services.book'),
-        onTap: () {
-          NavigationManager.navigateToWithSlideTransition(
-            context,
-            BookingScreen(),
-          );
-        },
-        icon: LucideIcons.truck,
-        backgroundColor: Color(0xffFA4032),
-        iconColor: Color(0xfffFEF3E2),
-        textColor: Color(0xfffFEF3E2),
-      ),
-      ServiceItem(
-        text: tr('home.services.pickup'),
-        onTap: () {
-          NavigationManager.navigateToWithSlideTransition(
-            context,
-            const PickupScreen(),
-          );
-        },
-        icon: LucideIcons.package,
-        backgroundColor: Color(0xffFA812F),
-        iconColor: Color(0xfffFEF3E2),
-        textColor: Color(0xfffFEF3E2),
-      ),
-      ServiceItem(
-        text: tr('home.services.payment'),
-        onTap: () {
-          NavigationManager.navigateToWithSlideTransition(
-            context,
-            const PaymentScreen(),
-          );
-        },
-        icon: LucideIcons.creditCard,
-        backgroundColor: Color(0xffFAB12F),
-        iconColor: Color(0xfffFEF3E2),
-        textColor: Color(0xfffFEF3E2),
-      ),
-    ];
     final themeState = ref.watch(themeProvider);
     final isDarkMode = themeState.isDarkMode;
-    // For now, user is null since the current auth provider doesn't track user data
-    // This should be updated when user management is added to the auth provider
     final user = ref.watch(currentUserProvider);
+    final isStaff = user?.role == 'STAFF';
+
+    // Create services list based on user role
+    final List<ServiceItem> services = isStaff
+        ? [
+            // Staff services - only 2 buttons
+            ServiceItem(
+              text: tr('staff.services.robots'),
+              onTap: () {
+                NavigationManager.navigateToWithSlideTransition(
+                  context,
+                  const RobotsScreen(),
+                );
+              },
+              icon: LucideIcons.bot,
+              backgroundColor: Color(0xffFA4032),
+              iconColor: Color(0xfffFEF3E2),
+              textColor: Color(0xfffFEF3E2),
+            ),
+            ServiceItem(
+              text: tr('staff.services.orders'),
+              onTap: () {
+                NavigationManager.navigateToWithSlideTransition(
+                  context,
+                  const OrdersManagementScreen(),
+                );
+              },
+              icon: LucideIcons.clipboardList,
+              backgroundColor: Color(0xffFA812F),
+              iconColor: Color(0xfffFEF3E2),
+              textColor: Color(0xfffFEF3E2),
+            ),
+          ]
+        : [
+            // User services - original 3 buttons
+            ServiceItem(
+              text: tr('home.services.book'),
+              onTap: () {
+                NavigationManager.navigateToWithSlideTransition(
+                  context,
+                  BookingScreen(),
+                );
+              },
+              icon: LucideIcons.truck,
+              backgroundColor: Color(0xffFA4032),
+              iconColor: Color(0xfffFEF3E2),
+              textColor: Color(0xfffFEF3E2),
+            ),
+            ServiceItem(
+              text: tr('home.services.pickup'),
+              onTap: () {
+                NavigationManager.navigateToWithSlideTransition(
+                  context,
+                  const PickupScreen(),
+                );
+              },
+              icon: LucideIcons.package,
+              backgroundColor: Color(0xffFA812F),
+              iconColor: Color(0xfffFEF3E2),
+              textColor: Color(0xfffFEF3E2),
+            ),
+            ServiceItem(
+              text: tr('home.services.payment'),
+              onTap: () {
+                NavigationManager.navigateToWithSlideTransition(
+                  context,
+                  const PaymentScreen(),
+                );
+              },
+              icon: LucideIcons.creditCard,
+              backgroundColor: Color(0xffFAB12F),
+              iconColor: Color(0xfffFEF3E2),
+              textColor: Color(0xfffFEF3E2),
+            ),
+          ];
 
     return Scaffold(
       key: _scaffoldKey,
