@@ -25,6 +25,9 @@ extension AuthStateX on AuthState {
   User? get user =>
       maybeWhen(authenticated: (user) => user, orElse: () => null);
 
+  String? get errorMessage =>
+      maybeWhen(unauthenticated: (error) => error, orElse: () => null);
+
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isLoading => status == AuthStatus.loading;
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;

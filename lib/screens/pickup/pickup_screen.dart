@@ -87,8 +87,9 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
     switch (status.toLowerCase()) {
       case 'pending':
         return tr('pickup.status.pending');
-      case 'active':
       case 'approved':
+        return tr('pickup.status.approved');
+      case 'active':
       case 'in_progress':
         return tr('pickup.status.active');
       case 'completed':
@@ -110,12 +111,13 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
       case 'pending':
         return Colors.orange;
       case 'active':
+      case 'approved':
       case 'in_progress':
       case 'in_transit':
-        return Colors.blue;
-      case 'completed':
-      case 'delivered':
         return Colors.green;
+      case 'delivered':
+      case 'completed':
+        return Colors.blue;
       case 'cancelled':
         return Colors.red;
       default:
@@ -172,6 +174,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
               builder: (context) => TripProgressScreen(
                 tripCode: tripResponse.data!.tripCode,
                 orderCode: order.orderCode,
+                robotCode: order.robotCode,
               ),
             ),
           );
@@ -655,13 +658,44 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
             Row(
               children: [
                 Icon(
+                  Icons.my_location_outlined,
+                  size: 16,
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${tr('booking.start_point_label')}: ',
+                  style: isDarkMode
+                      ? AppTypography.dmBodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500)
+                      : AppTypography.bodyText(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w500),
+                ),
+                Expanded(
+                  child: Text(
+                    order.startPoint,
+                    style: isDarkMode
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            Row(
+              children: [
+                Icon(
                   Icons.room_outlined,
                   size: 16,
                   color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${tr('booking.room_label')}: ',
+                  '${tr('booking.end_point_label')}: ',
                   style: isDarkMode
                       ? AppTypography.dmBodyText(
                           context,
@@ -717,7 +751,21 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
             // Action button (View Progress, Receive Order, or Pay)
             SizedBox(
               width: double.infinity,
-              child: order.status.toLowerCase() == 'delivered'
+              child: order.status.toLowerCase() == 'pending'
+                  ? ElevatedButton.icon(
+                      onPressed: null, // Disabled button
+                      icon: const Icon(Icons.schedule, size: 18),
+                      label: Text(tr('pickup.status.pending')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    )
+                  : order.status.toLowerCase() == 'delivered'
                   ? ElevatedButton.icon(
                       onPressed: () => _handleReceiveOrder(order),
                       icon: const Icon(Icons.qr_code_scanner, size: 18),
@@ -738,7 +786,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                       icon: const Icon(Icons.payment, size: 18),
                       label: Text(tr('pickup.pay_order')),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: Colors.yellow[700],
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

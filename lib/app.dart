@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:zippy/state/auth/auth_state.dart';
+import 'package:zippy/services/app_initialization_service.dart';
+import 'package:zippy/services/api_client.dart';
+import 'package:zippy/services/storage/persistent_mqtt_manager.dart';
 
 import 'screens/auth/login_screen.dart';
 import 'screens/home.dart';
@@ -22,13 +25,27 @@ class MyApp extends ConsumerStatefulWidget {
   ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends ConsumerState<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
 
+    // Add lifecycle observer for persistent MQTT management
+    WidgetsBinding.instance.addObserver(this);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+
+      // Set up auth failure callback for API client
+      ApiClient.setAuthFailureCallback((reason) {
+        if (mounted) {
+          // Force logout through auth provider
+          ref.read(authProvider.notifier).forceLogout(reason);
+        }
+      });
+
+      // Initialize app services (MQTT, etc.)
+      AppInitializationService.initialize(ref);
 
       // Initialize language state from EasyLocalization
       ref.read(languageProvider.notifier).initLocale(context);
@@ -39,6 +56,21 @@ class _MyAppState extends ConsumerState<MyApp> {
           .read(themeProvider.notifier)
           .toggleTheme(brightness == Brightness.dark);
     });
+  }
+
+  @override
+  void dispose() {
+    // Remove lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Notify persistent MQTT manager of lifecycle changes
+    PersistentMqttManager.instance.onAppLifecycleChanged(state);
   }
 
   @override
@@ -113,9 +145,37 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
     }
   }
 
+  void _showAuthErrorMessage(String? message) {
+    if (message != null && message.isNotEmpty && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        rootScaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+
+    // Show error message when authentication fails
+    if (auth.status == AuthStatus.unauthenticated &&
+        auth.errorMessage != null) {
+      _showAuthErrorMessage(auth.errorMessage);
+    }
 
     switch (auth.status) {
       case AuthStatus.unknown:

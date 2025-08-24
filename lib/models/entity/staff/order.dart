@@ -4,6 +4,7 @@ class StaffOrder {
   final String productName;
   final String? robotCode;
   final String? robotContainerCode;
+  final String? startPoint;
   final String endpoint;
   final double price;
   final String status;
@@ -16,6 +17,7 @@ class StaffOrder {
     required this.productName,
     this.robotCode,
     this.robotContainerCode,
+    this.startPoint,
     required this.endpoint,
     required this.price,
     required this.status,
@@ -30,6 +32,7 @@ class StaffOrder {
       productName: json['productName'] ?? '',
       robotCode: json['robotCode'],
       robotContainerCode: json['robotContainerCode'],
+      startPoint: json['startPoint'],
       endpoint: json['endpoint'] ?? '',
       price: (json['price'] ?? 0.0).toDouble(),
       status: json['status'] ?? '',
@@ -45,6 +48,7 @@ class StaffOrder {
       'productName': productName,
       'robotCode': robotCode,
       'robotContainerCode': robotContainerCode,
+      'startPoint': startPoint,
       'endpoint': endpoint,
       'price': price,
       'status': status,

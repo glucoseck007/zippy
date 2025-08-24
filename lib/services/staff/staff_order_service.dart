@@ -40,11 +40,9 @@ class StaffOrderService {
   }
 
   /// Approve a pending order
-  static Future<bool> approveOrder(String orderId) async {
+  static Future<bool> approveOrder(String orderCode) async {
     try {
-      final response = await ApiClient.post('/api/order/staff/approve', {
-        'orderId': orderId,
-      });
+      final response = await ApiClient.get('/order/approve/$orderCode');
 
       if (response.statusCode == 200) {
         return true;
@@ -54,26 +52,6 @@ class StaffOrderService {
       }
     } catch (e) {
       print('Error approving order: $e');
-      return false;
-    }
-  }
-
-  /// Assign robot to an order
-  static Future<bool> assignRobot(String orderId, String robotCode) async {
-    try {
-      final response = await ApiClient.post('/api/order/staff/assign-robot', {
-        'orderId': orderId,
-        'robotCode': robotCode,
-      });
-
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        print('Failed to assign robot: ${response.statusCode}');
-        return false;
-      }
-    } catch (e) {
-      print('Error assigning robot: $e');
       return false;
     }
   }

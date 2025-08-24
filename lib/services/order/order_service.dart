@@ -192,4 +192,101 @@ class OrderService {
       );
     }
   }
+
+  /// Confirm a reservation and create the actual order
+  static Future<OrderResponse?> confirmReservation({
+    required String reservationId,
+    required String productName,
+    required String endpoint,
+  }) async {
+    try {
+      print('OrderService: Confirming reservation...');
+      print('OrderService: Reservation ID: $reservationId');
+
+      final response = await ApiClient.post('/order/confirm-reservation', {
+        'reservationId': reservationId,
+        'productName': productName,
+        'endpoint': endpoint,
+      });
+
+      print(
+        'OrderService: Confirm response status code: ${response.statusCode}',
+      );
+      print('OrderService: Confirm response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonData = json.decode(response.body);
+        final orderResponse = OrderResponse.fromJson(jsonData);
+
+        print(
+          'OrderService: Successfully confirmed reservation and created order',
+        );
+        if (orderResponse.data != null) {
+          print('OrderService: Order ID: ${orderResponse.data!.orderId}');
+          print('OrderService: Order status: ${orderResponse.data!.status}');
+        }
+
+        return orderResponse;
+      } else {
+        print(
+          'OrderService: Reservation confirmation failed with status code: ${response.statusCode}',
+        );
+        print('OrderService: Error response: ${response.body}');
+
+        // Try to parse error response
+        try {
+          final jsonData = json.decode(response.body);
+          return OrderResponse.fromJson(jsonData);
+        } catch (e) {
+          // If parsing fails, return a generic error response
+          return OrderResponse(
+            success: false,
+            message:
+                'Reservation confirmation failed with status ${response.statusCode}',
+          );
+        }
+      }
+    } catch (e) {
+      print(
+        'OrderService: Exception occurred during reservation confirmation: $e',
+      );
+      return OrderResponse(
+        success: false,
+        message: 'Network error occurred during confirmation: $e',
+      );
+    }
+  }
+
+  /// Cancel a reservation
+  static Future<bool> cancelReservation(String reservationId) async {
+    try {
+      print('OrderService: Cancelling reservation...');
+      print('OrderService: Reservation ID: $reservationId');
+
+      final response = await ApiClient.post(
+        '/order/reservation/$reservationId/cancel',
+        {},
+      );
+
+      print(
+        'OrderService: Cancel response status code: ${response.statusCode}',
+      );
+      print('OrderService: Cancel response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('OrderService: Successfully cancelled reservation');
+        return true;
+      } else {
+        print(
+          'OrderService: Reservation cancellation failed with status code: ${response.statusCode}',
+        );
+        return false;
+      }
+    } catch (e) {
+      print(
+        'OrderService: Exception occurred during reservation cancellation: $e',
+      );
+      return false;
+    }
+  }
 }

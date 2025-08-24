@@ -4,8 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:zippy/utils/secure_storage.dart';
 import 'package:zippy/services/auth/auth_service.dart';
 
+// Global callback for auth failures - will be set by main app
+typedef AuthFailureCallback = void Function(String reason);
+AuthFailureCallback? _onAuthFailure;
+
 class ApiClient {
   static String baseUrl = dotenv.get('BACKEND_API_ENDPOINT');
+
+  /// Set the auth failure callback (typically called from main app)
+  static void setAuthFailureCallback(AuthFailureCallback callback) {
+    _onAuthFailure = callback;
+  }
 
   // Helper method to get fresh token and headers
   static Future<Map<String, String>> _getHeaders([
@@ -42,7 +51,9 @@ class ApiClient {
 
     // If unauthorized, try to refresh token and retry once
     if (response.statusCode == 401 || response.statusCode == 403) {
-      print('ApiClient: Received 401, attempting token refresh...');
+      print(
+        'ApiClient: Received ${response.statusCode}, attempting token refresh...',
+      );
 
       final refreshSuccess = await AuthService.refreshAccessToken();
       if (refreshSuccess) {
@@ -50,7 +61,11 @@ class ApiClient {
         // Retry the original request with new token
         return await apiCall();
       } else {
-        print('ApiClient: Token refresh failed');
+        print(
+          'ApiClient: Token refresh failed - triggering auth failure callback',
+        );
+        // Trigger auth failure callback to force logout
+        _onAuthFailure?.call('Authentication failed. Please log in again.');
       }
     }
 

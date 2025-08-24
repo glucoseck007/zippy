@@ -97,19 +97,57 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _isRefreshing = true;
       // Call refresh token API
       final success = await AuthService.refreshAccessToken();
+      _isRefreshing = false;
+
       if (success) {
-        // print('Token refreshed successfully');
+        print('AuthNotifier: Token refreshed successfully');
         return true;
       } else {
-        // print('Failed to refresh token');
+        print(
+          'AuthNotifier: Failed to refresh token - clearing tokens and logging out',
+        );
         await SecureStorage.clearTokens();
+        // Update state to unauthenticated to trigger login screen
+        state = const AuthState.unauthenticated(
+          "Session expired. Please log in again.",
+        );
         return false;
       }
     } catch (e) {
-      print('Error during token refresh: $e');
+      _isRefreshing = false;
+      print('AuthNotifier: Error during token refresh: $e');
       await SecureStorage.clearTokens();
+      // Update state to unauthenticated to trigger login screen
+      state = const AuthState.unauthenticated(
+        "Authentication error. Please log in again.",
+      );
       return false;
     }
+  }
+
+  /// Force logout due to authentication failure
+  Future<void> forceLogout([String? reason]) async {
+    print(
+      'AuthNotifier: Force logout triggered - ${reason ?? "Authentication failed"}',
+    );
+
+    try {
+      // Try to logout from server, but don't wait for it
+      AuthService.logout().catchError((e) {
+        print('AuthNotifier: Server logout failed during force logout: $e');
+        return false; // Return false to satisfy the Future<bool> return type
+      });
+    } catch (e) {
+      print('AuthNotifier: Error during server logout: $e');
+    }
+
+    // Clear local tokens
+    await SecureStorage.clearTokens();
+
+    // Update state to unauthenticated to trigger login screen
+    state = AuthState.unauthenticated(
+      reason ?? "Session expired. Please log in again.",
+    );
   }
 
   /// Extract user information from JWT token

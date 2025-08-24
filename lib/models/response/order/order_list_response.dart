@@ -38,6 +38,7 @@ class OrderListItem {
   final String productName;
   final String robotCode;
   final String robotContainerCode;
+  final String startPoint;
   final String endpoint;
   final String status;
   final DateTime? createdAt;
@@ -50,6 +51,7 @@ class OrderListItem {
     required this.productName,
     required this.robotCode,
     required this.robotContainerCode,
+    required this.startPoint,
     required this.endpoint,
     required this.status,
     this.createdAt,
@@ -64,6 +66,7 @@ class OrderListItem {
       productName: json['productName'] as String? ?? '',
       robotCode: json['robotCode'] as String? ?? '',
       robotContainerCode: json['robotContainerCode'] as String? ?? '',
+      startPoint: json['startPoint'] as String? ?? '',
       endpoint: json['endpoint'] as String? ?? '',
       status: json['status'] as String? ?? '',
       createdAt: json['createdAt'] != null
@@ -83,6 +86,7 @@ class OrderListItem {
       'productName': productName,
       'robotCode': robotCode,
       'robotContainerCode': robotContainerCode,
+      'startPoint': startPoint,
       'endpoint': endpoint,
       'status': status,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
@@ -101,6 +105,7 @@ class OrderListItem {
         other.productName == productName &&
         other.robotCode == robotCode &&
         other.robotContainerCode == robotContainerCode &&
+        other.startPoint == startPoint &&
         other.endpoint == endpoint &&
         other.status == status;
   }
@@ -113,6 +118,7 @@ class OrderListItem {
       productName,
       robotCode,
       robotContainerCode,
+      startPoint,
       endpoint,
       status,
     );
@@ -120,6 +126,6 @@ class OrderListItem {
 
   @override
   String toString() {
-    return 'OrderListItem(orderId: $orderId, orderCode: $orderCode, productName: $productName, robotCode: $robotCode, endpoint: $endpoint, status: $status)';
+    return 'OrderListItem(orderId: $orderId, orderCode: $orderCode, productName: $productName, robotCode: $robotCode, startPoint: $startPoint, endpoint: $endpoint, status: $status)';
   }
 }

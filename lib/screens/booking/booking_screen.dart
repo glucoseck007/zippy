@@ -9,6 +9,7 @@ import 'package:zippy/models/entity/request/order_request.dart';
 import 'package:zippy/providers/auth/auth_provider.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/providers/robot/robot_provider.dart';
+import 'package:zippy/services/mqtt/mqtt_manager.dart';
 import 'package:zippy/screens/home.dart';
 import 'package:zippy/services/order/order_service.dart';
 import 'package:zippy/state/auth/auth_state.dart';
@@ -24,12 +25,21 @@ class BookingScreen extends ConsumerStatefulWidget {
 
 class _BookingScreenState extends ConsumerState<BookingScreen> {
   final TextEditingController _productNameController = TextEditingController();
+  final TextEditingController _receiverIdentifierController =
+      TextEditingController();
+  String _selectedStartPoint = ''; // Selected start point
   String _selectedRoom = ''; // Selected delivery room
 
-  // Generate room list from DE-104 to DE-128
+  // Generate room list from DE-101 to DE-120 (Delta Building)
   final List<String> _roomOptions = List.generate(
-    25, // 128 - 104 + 1 = 25 rooms
-    (index) => 'DE-${104 + index}',
+    20, // 120 - 101 + 1 = 20 rooms
+    (index) => 'DE-${101 + index}',
+  );
+
+  // Start point options - same as room options since they're all in Delta building
+  final List<String> _startPointOptions = List.generate(
+    20, // 120 - 101 + 1 = 20 rooms
+    (index) => 'DE-${101 + index}',
   );
 
   String? _selectedRobotId;
@@ -42,13 +52,84 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedStartPoint =
+        _startPointOptions[0]; // Initialize with first start point
     _selectedRoom = _roomOptions[0]; // Initialize with first room option
+
+    // Initialize MQTT connection for real-time robot status updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      MqttManager.initialize();
+    });
+
+    // Set up callback for when robots become available
+    RobotNotifier.onRobotsAvailable = _onRobotsAvailable;
+
+    // Set up callback for when containers become available (step 4)
+    RobotNotifier.onContainersAvailable = _onContainersAvailable;
   }
 
   @override
   void dispose() {
     _productNameController.dispose();
+    _receiverIdentifierController.dispose();
+    // Clear the callbacks to prevent memory leaks
+    RobotNotifier.onRobotsAvailable = null;
+    RobotNotifier.onContainersAvailable = null;
     super.dispose();
+  }
+
+  /// Called when robots become available via MQTT
+  void _onRobotsAvailable() {
+    // Only auto-refresh if we're currently on step 4 (robot selection)
+    if (_currentStep == 3) {
+      print(
+        'BookingScreen: 🔄 Auto-refreshing robot selection due to MQTT update',
+      );
+
+      // Show a snackbar to inform user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('booking.robots_updated')),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Trigger a rebuild to show updated robot list
+        setState(() {
+          // Force UI rebuild - the provider state has already been updated
+        });
+      }
+    }
+  }
+
+  /// Called when containers become available via MQTT (step 5)
+  void _onContainersAvailable() {
+    // Only auto-refresh if we're currently on step 5 (container selection)
+    if (_currentStep == 4) {
+      print(
+        'BookingScreen: 🔄 Auto-refreshing container selection due to MQTT update',
+      );
+
+      // Show a snackbar to inform user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('booking.containers_updated')),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.blue,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Trigger a rebuild to show updated container list
+        setState(() {
+          // Force UI rebuild - the provider state has already been updated
+        });
+      }
+    }
   }
 
   // Move to next step
@@ -61,12 +142,26 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         });
       }
     } else if (_currentStep == 1) {
-      // Step 2: Validate room selection and move to step 3
+      // Step 2: Validate start point selection
+      if (_selectedStartPoint.isNotEmpty) {
+        setState(() {
+          _currentStep++;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('booking.start_point_selection_required')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else if (_currentStep == 2) {
+      // Step 3: Validate endpoint/room selection
       if (_selectedRoom.isNotEmpty) {
         setState(() {
           _currentStep++;
         });
-        // Load robots when entering step 3
+        // Load robots when entering step 4
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final robotState = ref.read(robotProvider);
           if (!robotState.isLoaded && !robotState.isLoading) {
@@ -81,8 +176,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           ),
         );
       }
-    } else if (_currentStep == 2) {
-      // Step 3: Validate robot selection and load robots if not already loaded
+    } else if (_currentStep == 3) {
+      // Step 4: Validate robot selection and load robots if not already loaded
       final robotState = ref.read(robotProvider);
       if (!robotState.isLoaded && !robotState.isLoading) {
         // Load robots first
@@ -104,11 +199,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           ),
         );
       }
-    } else if (_currentStep == 3) {
-      // Step 4: Validate container selection and submit
+    } else if (_currentStep == 4) {
+      // Step 5: Validate container selection and create order directly
       if (_selectedContainerCode != null &&
           _selectedContainerCode!.isNotEmpty) {
-        _submitBooking();
+        _submitOrder();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -134,8 +229,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     }
   }
 
-  // Submit the booking
-  Future<void> _submitBooking() async {
+  // Submit the order directly without reservation
+  Future<void> _submitOrder() async {
     final robotState = ref.read(robotProvider);
     final authState = ref.read(authProvider);
 
@@ -160,19 +255,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       return;
     }
 
-    // Get selected robot details from the robot state
-    final allRobots = [...robotState.freeRobots, ...robotState.busyRobots];
-    final selectedRobot = allRobots.firstWhere(
-      (robot) => robot.robotCode == _selectedRobotId,
-      orElse: () => throw Exception('Selected robot not found'),
-    );
-
-    // Get selected container details
-    final selectedContainer = selectedRobot.freeContainers.firstWhere(
-      (container) => container.containerCode == _selectedContainerCode,
-      orElse: () => throw Exception('Selected container not found'),
-    );
-
     // Show loading dialog
     showDialog(
       context: context,
@@ -189,16 +271,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
 
     try {
-      // Create the order request
+      // Create the order request object
       final orderRequest = OrderRequest(
-        username: authState.user!.username,
+        senderIdentifier:
+            authState.user!.username, // Use username as sender identifier
+        receiverIdentifier: _receiverIdentifierController.text.trim(),
         productName: _productNameController.text.trim(),
-        robotCode: selectedRobot.robotCode,
-        robotContainerCode: selectedContainer.containerCode,
+        robotCode: _selectedRobotId!,
+        robotContainerCode: _selectedContainerCode!,
+        startPoint: _selectedStartPoint,
         endpoint: _selectedRoom,
+        approved: false, // Default to false, will be approved by admin/system
       );
 
-      // Call the order creation API
+      // Create the order directly
       final orderResponse = await OrderService.createOrder(orderRequest);
 
       // Close loading dialog
@@ -208,6 +294,17 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
       if (orderResponse != null && orderResponse.success) {
         // Order created successfully
+        final robotState = ref.read(robotProvider);
+        final allRobots = [...robotState.freeRobots, ...robotState.busyRobots];
+        final selectedRobot = allRobots.firstWhere(
+          (robot) => robot.robotCode == _selectedRobotId,
+          orElse: () => throw Exception('Selected robot not found'),
+        );
+        final selectedContainer = selectedRobot.freeContainers.firstWhere(
+          (container) => container.containerCode == _selectedContainerCode,
+          orElse: () => throw Exception('Selected container not found'),
+        );
+
         _showOrderSuccessDialog(
           orderResponse,
           selectedRobot,
@@ -386,8 +483,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         title: Text(
           tr('booking.title'),
           style: isDarkMode
-              ? AppTypography.dmHeading(context).copyWith(fontWeight: FontWeight.w500)
-              : AppTypography.heading(context).copyWith(fontWeight: FontWeight.w500),
+              ? AppTypography.dmHeading(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500)
+              : AppTypography.heading(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500),
         ),
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
@@ -396,6 +497,48 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             onPressed: _previousStep,
           ),
         ),
+        actions: [
+          // Temporary debug button to test MQTT subscription
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () async {
+              print('Debug button pressed - checking MQTT status');
+
+              // Also show current robot state
+              final robotState = ref.read(robotProvider);
+              print('=== CURRENT ROBOT STATE ===');
+              print('State type: ${robotState.runtimeType}');
+              print('Is loaded: ${robotState.isLoaded}');
+              if (robotState.isLoaded) {
+                print('Free robots: ${robotState.freeRobots.length}');
+                print('Busy robots: ${robotState.busyRobots.length}');
+                print(
+                  'Free robot IDs: ${robotState.freeRobots.map((r) => r.robotCode).join(", ")}',
+                );
+                print(
+                  'Busy robot IDs: ${robotState.busyRobots.map((r) => r.robotCode).join(", ")}',
+                );
+              }
+              print(
+                'Message: ${robotState.isLoaded ? 'Loaded successfully' : 'Not loaded'}',
+              );
+              print('==========================');
+
+              // Show a snackbar with the current state
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Debug info printed to console. Robot count: ${robotState.isLoaded ? robotState.freeRobots.length + robotState.busyRobots.length : 0}',
+                  ),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+
+              // Wait a bit then test publishing
+              await Future.delayed(Duration(seconds: 2));
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         bottom: true, // Ensure the SafeArea accounts for bottom system bars
@@ -419,25 +562,29 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       children: [
                         // Animated progress indicators
                         Row(
-                          children: List.generate(4, (index) {
+                          children: List.generate(5, (index) {
                             // Different color for each step
                             Color indicatorColor;
                             if (index == 0) {
                               indicatorColor = Color(
                                 0xffFA4032,
-                              ); // First step: Red
+                              ); // First step: Red (Product Info)
                             } else if (index == 1) {
                               indicatorColor = Color(
                                 0xffFA812F,
-                              ); // Second step: Orange
+                              ); // Second step: Orange (Start Point)
                             } else if (index == 2) {
                               indicatorColor = Color(
                                 0xffFAB12F,
-                              ); // Third step: Yellow
-                            } else {
+                              ); // Third step: Yellow (Endpoint)
+                            } else if (index == 3) {
                               indicatorColor = Color(
                                 0xff2ECC71,
-                              ); // Fourth step: Green
+                              ); // Fourth step: Green (Robot)
+                            } else {
+                              indicatorColor = Color(
+                                0xff3498DB,
+                              ); // Fifth step: Blue (Container)
                             }
 
                             return Expanded(
@@ -463,7 +610,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
                         // Step indicator text
                         Text(
-                          '${tr('booking.step')} ${_currentStep + 1} ${tr('booking.of')} 4',
+                          '${tr('booking.step')} ${_currentStep + 1} ${tr('booking.of')} 5',
                           style: isDarkMode
                               ? AppTypography.dmSubTitleText(context)
                               : AppTypography.subTitleText(context),
@@ -490,8 +637,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               ),
                             ),
                             child: Text(
-                              _currentStep == 3
-                                  ? tr('booking.submit')
+                              _currentStep == 4
+                                  ? tr('booking.create_order')
                                   : tr('booking.next'),
                               style: AppTypography.buttonText(context),
                             ),
@@ -515,10 +662,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       case 0:
         return _buildProductInfoStep(isDarkMode);
       case 1:
-        return _buildRoomSelectionStep(isDarkMode);
+        return _buildStartPointSelectionStep(isDarkMode);
       case 2:
-        return _buildRobotSelectionStep(isDarkMode);
+        return _buildRoomSelectionStep(isDarkMode);
       case 3:
+        return _buildRobotSelectionStep(isDarkMode);
+      case 4:
         return _buildContainerSelectionStep(isDarkMode);
       default:
         return Container();
@@ -551,17 +700,133 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           },
         ),
         const SizedBox(height: 16),
+        CustomInput(
+          labelKey: 'booking.receiver_identifier',
+          hintKey: 'booking.receiver_identifier_hint',
+          controller: _receiverIdentifierController,
+          keyboardType: TextInputType.emailAddress,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return tr('booking.receiver_identifier_required');
+            }
+            // Check if it's a valid email or phone number
+            final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+            final phoneRegex = RegExp(r'^[0-9]{10,11}$');
+            final cleanValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+
+            if (!emailRegex.hasMatch(value) &&
+                !phoneRegex.hasMatch(cleanValue)) {
+              return tr('booking.invalid_identifier_format');
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
         Text(
           tr('booking.product_info_desc'),
           textAlign: TextAlign.center,
           style: isDarkMode
-              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(
+                  context,
+                ).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(
+                  context,
+                ).copyWith(color: Colors.grey[600]),
         ),
       ],
     );
-  } // Step 2: Room Selection
+  }
 
+  // Step 2: Start Point Selection
+  Widget _buildStartPointSelectionStep(bool isDarkMode) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          tr('booking.select_start_point'),
+          style: isDarkMode
+              ? AppTypography.dmSubTitleText(context)
+              : AppTypography.subTitleText(context),
+        ),
+        const SizedBox(height: 8),
+        // Description text for start point selection
+        Text(
+          tr('booking.start_point_selection_desc'),
+          style: isDarkMode
+              ? AppTypography.dmBodyText(
+                  context,
+                ).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(
+                  context,
+                ).copyWith(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 16),
+
+        // Start point grid layout (same as room selection)
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5, // 5 rooms per row
+            childAspectRatio: 1.5,
+            crossAxisSpacing: 8.0,
+            mainAxisSpacing: 8.0,
+          ),
+          itemCount: _startPointOptions.length,
+          itemBuilder: (context, index) {
+            final startPoint = _startPointOptions[index];
+            final isSelected = startPoint == _selectedStartPoint;
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedStartPoint = startPoint;
+                });
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.buttonColor
+                      : (isDarkMode
+                            ? AppColors.dmCardColor
+                            : AppColors.cardColor.withOpacity(0.2)),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.buttonColor
+                        : (isDarkMode ? Colors.white24 : Colors.black12),
+                    width: 1,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    startPoint,
+                    style:
+                        (isDarkMode
+                                ? AppTypography.dmBodyText(context)
+                                : AppTypography.bodyText(context))
+                            .copyWith(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDarkMode
+                                        ? Colors.white
+                                        : Colors.black87),
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // Step 3: Room Selection
   Widget _buildRoomSelectionStep(bool isDarkMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -577,8 +842,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         Text(
           tr('booking.room_selection_desc'),
           style: isDarkMode
-              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(
+                  context,
+                ).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(
+                  context,
+                ).copyWith(color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
@@ -646,9 +915,22 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
-  // Step 3: Robot Selection
+  // Step 4: Robot Selection
   Widget _buildRobotSelectionStep(bool isDarkMode) {
     final robotState = ref.watch(robotProvider);
+
+    // Debug logging for UI state changes
+    print('BookingScreen: Building robot selection step');
+    print('BookingScreen: Robot state type: ${robotState.runtimeType}');
+    print('BookingScreen: Is loaded: ${robotState.isLoaded}');
+    if (robotState.isLoaded) {
+      print(
+        'BookingScreen: Free robots count: ${robotState.freeRobots.length}',
+      );
+      print(
+        'BookingScreen: Free robot IDs: ${robotState.freeRobots.map((r) => r.robotCode).join(", ")}',
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -663,8 +945,59 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         Text(
           tr('booking.robot_selection_desc'),
           style: isDarkMode
-              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(
+                  context,
+                ).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(
+                  context,
+                ).copyWith(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+
+        // MQTT Connection Status
+        Consumer(
+          builder: (context, ref, child) {
+            final isConnected = MqttManager.isConnected;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isConnected
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isConnected
+                      ? Colors.green.withOpacity(0.3)
+                      : Colors.orange.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isConnected ? Icons.wifi : Icons.wifi_off,
+                    size: 16,
+                    color: isConnected ? Colors.green : Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isConnected
+                        ? tr('booking.mqtt_connected')
+                        : tr('booking.mqtt_disconnected'),
+                    style:
+                        (isDarkMode
+                                ? AppTypography.dmBodyText(context)
+                                : AppTypography.bodyText(context))
+                            .copyWith(
+                              color: isConnected ? Colors.green : Colors.orange,
+                              fontSize: 12,
+                            ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: 16),
 
@@ -787,8 +1120,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                 robot.displayName,
                                 style:
                                     (isDarkMode
-                                            ? AppTypography.dmSubTitleText(context)
-                                            : AppTypography.subTitleText(context))
+                                            ? AppTypography.dmSubTitleText(
+                                                context,
+                                              )
+                                            : AppTypography.subTitleText(
+                                                context,
+                                              ))
                                         .copyWith(
                                           fontWeight: isSelected
                                               ? FontWeight.bold
@@ -846,8 +1183,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                     '${tr('booking.eta')}: ${robot.estimatedArrival ?? tr('booking.unknown')}',
                                     style:
                                         (isDarkMode
-                                                ? AppTypography.dmBodyText(context)
-                                                : AppTypography.bodyText(context))
+                                                ? AppTypography.dmBodyText(
+                                                    context,
+                                                  )
+                                                : AppTypography.bodyText(
+                                                    context,
+                                                  ))
                                             .copyWith(
                                               color: Colors.orange,
                                               fontWeight: FontWeight.w500,
@@ -906,7 +1247,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               tr('booking.no_robots_title'),
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmSubTitleText(context)
+                                          ? AppTypography.dmSubTitleText(
+                                              context,
+                                            )
                                           : AppTypography.subTitleText(context))
                                       .copyWith(
                                         color: Colors.orange,
@@ -1014,7 +1357,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               robot.displayName,
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmSubTitleText(context)
+                                          ? AppTypography.dmSubTitleText(
+                                              context,
+                                            )
                                           : AppTypography.subTitleText(context))
                                       .copyWith(
                                         color: Colors.red,
@@ -1168,8 +1513,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         Text(
           tr('booking.container_selection_desc'),
           style: isDarkMode
-              ? AppTypography.dmBodyText(context).copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText(context).copyWith(color: Colors.grey[600]),
+              ? AppTypography.dmBodyText(
+                  context,
+                ).copyWith(color: Colors.grey[400])
+              : AppTypography.bodyText(
+                  context,
+                ).copyWith(color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
@@ -1239,7 +1588,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               container.displayName,
                               style:
                                   (isDarkMode
-                                          ? AppTypography.dmSubTitleText(context)
+                                          ? AppTypography.dmSubTitleText(
+                                              context,
+                                            )
                                           : AppTypography.subTitleText(context))
                                       .copyWith(
                                         fontWeight: isSelected

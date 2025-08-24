@@ -361,40 +361,19 @@ class _OrdersManagementScreenState
             ],
             if (order.status.toUpperCase() == 'PENDING') ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _approveOrder(order),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
-                      child: Text(
-                        tr('staff.orders.approve'),
-                        style: AppTypography.buttonText(
-                          context,
-                        ).copyWith(fontSize: 12),
-                      ),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _approveOrder(order),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _showAssignRobotDialog(order),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.buttonColor,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
-                      child: Text(
-                        tr('staff.orders.assign_robot'),
-                        style: AppTypography.buttonText(
-                          context,
-                        ).copyWith(fontSize: 12),
-                      ),
-                    ),
+                  child: Text(
+                    tr('staff.orders.approve'),
+                    style: AppTypography.buttonText(context),
                   ),
-                ],
+                ),
               ),
             ],
           ],
@@ -483,7 +462,7 @@ class _OrdersManagementScreenState
 
     if (confirmed == true) {
       try {
-        final success = await StaffOrderService.approveOrder(order.orderId);
+        final success = await StaffOrderService.approveOrder(order.orderCode);
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -508,102 +487,6 @@ class _OrdersManagementScreenState
           ),
         );
       }
-    }
-  }
-
-  void _showAssignRobotDialog(StaffOrder order) {
-    final themeState = ref.read(themeProvider);
-    final isDarkMode = themeState.isDarkMode;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            tr('staff.orders.assign_robot_title'),
-            style: isDarkMode
-                ? AppTypography.dmHeading(context)
-                : AppTypography.heading(context),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${tr('staff.orders.assign_robot_message')} ${order.orderCode}',
-                style: isDarkMode
-                    ? AppTypography.dmBodyText(context)
-                    : AppTypography.bodyText(context),
-              ),
-              const SizedBox(height: 16),
-              // Robot selection list (mock data for now)
-              ...List.generate(
-                3,
-                (index) => ListTile(
-                  leading: Icon(Icons.smart_toy, color: Colors.green),
-                  title: Text(
-                    'ROBOT-${(index + 1).toString().padLeft(3, '0')}',
-                  ),
-                  subtitle: Text(
-                    'Battery: ${85 - (index * 10)}% | Zone ${String.fromCharCode(65 + index)}',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _assignRobot(
-                      order,
-                      'ROBOT-${(index + 1).toString().padLeft(3, '0')}',
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                tr('common.cancel'),
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _assignRobot(StaffOrder order, String robotCode) async {
-    try {
-      final success = await StaffOrderService.assignRobot(
-        order.orderId,
-        robotCode,
-      );
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${order.orderCode} assigned to $robotCode'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadOrders(); // Refresh the list
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to assign robot to ${order.orderCode}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error assigning robot: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 }

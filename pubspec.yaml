@@ -40,6 +40,9 @@ dependencies:
   json_annotation: ^4.9.0
   mobile_scanner: ^5.2.3
   pin_code_fields: ^8.0.1
+  mqtt_client: ^10.2.0
+  flutter_local_notifications: ^17.2.2
+  workmanager: ^0.9.0+2
 
 dev_dependencies:
   flutter_test:

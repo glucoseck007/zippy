@@ -11,6 +11,7 @@ import 'package:zippy/screens/payment/payment_screen.dart';
 import 'package:zippy/screens/pickup/pickup_screen.dart';
 import 'package:zippy/screens/staff/robots_screen.dart';
 import 'package:zippy/screens/staff/orders_management_screen.dart';
+import 'package:zippy/services/notification/notification_service.dart';
 import 'package:zippy/utils/navigation_manager.dart';
 import '../design/app_typography.dart';
 import '../design/app_colors.dart';
@@ -28,6 +29,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Add a GlobalKey for the Scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _notificationPermissionGranted = false;
 
   final List<Location> locations = [
     Location(
@@ -46,6 +48,122 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       position: const LatLng(21.013371, 105.523582),
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Check notification permission status
+    _checkNotificationPermissions();
+  }
+
+  // Check if notification permissions are already granted
+  Future<void> _checkNotificationPermissions() async {
+    try {
+      // Try to initialize - if it fails, permissions aren't granted
+      await NotificationService().initialize();
+      setState(() {
+        _notificationPermissionGranted = true;
+      });
+      print('Home: Notification permissions already granted');
+    } catch (e) {
+      setState(() {
+        _notificationPermissionGranted = false;
+      });
+      print('Home: Notification permissions not granted: $e');
+    }
+  }
+
+  // Initialize notification service and request permissions
+  Future<void> _initializeNotifications() async {
+    try {
+      await NotificationService().initialize();
+      setState(() {
+        _notificationPermissionGranted = true;
+      });
+      print('Home: Notification permissions requested successfully');
+    } catch (e) {
+      setState(() {
+        _notificationPermissionGranted = false;
+      });
+      print('Home: Failed to initialize notifications: $e');
+      // Continue without notifications - not critical for app function
+    }
+  }
+
+  // Show dialog explaining why notifications are needed
+  void _showNotificationPermissionDialog() {
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.notifications_active, color: Colors.orange, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tr('home.notification_permission.title'),
+                  style:
+                      (isDarkMode
+                              ? AppTypography.dmHeading(context)
+                              : AppTypography.heading(context))
+                          .copyWith(fontSize: 18),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Text(
+              tr('home.notification_permission.message'),
+              style: isDarkMode
+                  ? AppTypography.dmBodyText(context)
+                  : AppTypography.bodyText(context),
+            ),
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(tr('home.notification_permission.skip')),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _initializeNotifications();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(
+                      tr('home.notification_permission.allow'),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +282,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                     const Spacer(),
+                    // Notification permission icon
+                    if (!_notificationPermissionGranted)
+                      InkWell(
+                        onTap: _showNotificationPermissionDialog,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.orange.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.notifications_active,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
