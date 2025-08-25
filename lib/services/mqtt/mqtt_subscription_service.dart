@@ -3,6 +3,7 @@ import 'mqtt_manager.dart';
 import 'mqtt_service.dart';
 import '../storage/trip_storage_service.dart';
 import '../storage/persistent_mqtt_manager.dart';
+import '../native/background_service_debugger.dart';
 
 /// Service for handling MQTT subscriptions and message processing
 /// specifically for trip progress updates
@@ -65,11 +66,28 @@ class MqttSubscriptionService {
             // Store raw progress update via TripStorageService for persistent storage
             final progress = data['progress'] as num?;
             if (progress != null) {
+              // Store using TripStorageService (with improved deduplication logic)
               TripStorageService().storeRawProgressUpdate(
                 robotCode: robotCode,
                 tripCode: tripCode,
                 data: data,
               );
+
+              // Also use our BackgroundServiceDebugger to ensure the latest value
+              // is always stored and tracked - this bypasses any deduplication logic
+              BackgroundServiceDebugger.processMqttPayload(data)
+                  .then((result) {
+                    if (result['success'] == true) {
+                      print(
+                        'MqttSubscriptionService: Successfully tracked payload via debugger',
+                      );
+                    }
+                  })
+                  .catchError((e) {
+                    print(
+                      'MqttSubscriptionService: Failed to track payload: $e',
+                    );
+                  });
             }
           }
         }

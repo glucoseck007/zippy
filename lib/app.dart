@@ -6,6 +6,7 @@ import 'package:zippy/state/auth/auth_state.dart';
 import 'package:zippy/services/app_initialization_service.dart';
 import 'package:zippy/services/api_client.dart';
 import 'package:zippy/services/storage/persistent_mqtt_manager.dart';
+import 'package:zippy/services/native/background_service_debugger.dart';
 
 import 'screens/auth/login_screen.dart';
 import 'screens/home.dart';
@@ -110,6 +111,29 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               builder: (context) => const LoginScreen(),
               settings: settings,
             );
+          case '/debug':
+            // Check debug action from environment variables
+            const debugAction = String.fromEnvironment('DEBUG_ACTION');
+            if (debugAction == 'check_progress') {
+              // Run the check and exit
+              BackgroundServiceDebugger.checkForDuplicateTripData();
+              BackgroundServiceDebugger.checkRawProgressData();
+              return MaterialPageRoute(
+                builder: (context) => const Scaffold(
+                  body: Center(child: Text('Debug check complete')),
+                ),
+                settings: settings,
+              );
+            } else if (debugAction == 'clear_progress') {
+              // Clear progress data and exit
+              BackgroundServiceDebugger.clearAllProgressData();
+              return MaterialPageRoute(
+                builder: (context) => const Scaffold(
+                  body: Center(child: Text('Progress data cleared')),
+                ),
+                settings: settings,
+              );
+            }
           default:
             // Handle unknown routes
             return MaterialPageRoute(
@@ -117,6 +141,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               settings: settings,
             );
         }
+        return null;
       },
       home: const AppInitializer(),
     );

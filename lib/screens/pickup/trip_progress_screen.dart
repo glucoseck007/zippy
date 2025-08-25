@@ -251,7 +251,15 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
         // If we have cached data, use it to update the UI immediately
         if (cachedData != null && mounted) {
           print('TripProgress: Using cached data to update UI: $cachedData');
-          _handleMqttMessage(cachedData);
+
+          // Mark the data as cached to prevent re-storing it
+          final markedCachedData = {
+            ...cachedData,
+            'fromCache': true, // Add a marker to identify cached data
+          };
+
+          // Use the cached data to update UI, but don't re-store it
+          _handleMqttMessage(markedCachedData);
         }
       } else {
         print('TripProgress: Failed to subscribe to trip progress updates');
@@ -315,9 +323,18 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
         return;
       }
 
-      // Always store incoming progress updates immediately in local storage
-      // This ensures we capture the data even if trip details aren't loaded yet
-      _storeRawProgressUpdate(data);
+      // Check if this data is from cache (has the marker we added)
+      final isFromCache = data['fromCache'] == true;
+
+      // Only store updates from live MQTT messages, not from cached data
+      if (!isFromCache) {
+        print('TripProgress: Storing new progress update from MQTT');
+        _storeRawProgressUpdate(data);
+      } else {
+        print(
+          'TripProgress: Using cached data, skipping storage to avoid feedback loop',
+        );
+      }
 
       // If start/end points are missing, try to use cached values
       final startPoint = payloadStartPoint ?? _tripStartPoint;

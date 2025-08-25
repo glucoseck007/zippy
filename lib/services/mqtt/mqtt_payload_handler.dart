@@ -172,11 +172,14 @@ class MqttPayloadHandler {
         return;
       }
 
+      // Check if this data is from cache (has the marker we added)
+      final isFromCache = data['fromCache'] == true;
+
       print(
-        'MqttPayloadHandler: Processing robot trip - Robot: $robotId, Trip: $tripCode',
+        'MqttPayloadHandler: Processing robot trip - Robot: $robotId, Trip: $tripCode, FromCache: $isFromCache',
       );
 
-      // Persist trip progress
+      // Persist trip progress (the _persistTripProgress method will check isFromCache again)
       await _persistTripProgress(tripCode, data);
 
       // Update robot state if applicable
@@ -409,6 +412,17 @@ class MqttPayloadHandler {
     Map<String, dynamic> data,
   ) async {
     try {
+      // Check if this data is from cache (has the marker we added)
+      final isFromCache = data['fromCache'] == true;
+
+      // Skip storage if data is from cache to prevent feedback loops
+      if (isFromCache) {
+        print(
+          'MqttPayloadHandler: Skipping storage for cached data to prevent feedback loop',
+        );
+        return;
+      }
+
       // Extract robotCode from topic or data
       String? robotCode;
       final topic = data['topic'] as String?;
@@ -452,20 +466,76 @@ class MqttPayloadHandler {
       final latestPayloadsList =
           prefs.getStringList('latest_mqtt_payloads') ?? [];
 
-      final results = <Map<String, dynamic>>[];
+      print(
+        'MqttPayloadHandler: Found ${latestPayloadsList.length} stored payload keys',
+      );
+
+      // Map to keep only the latest message for each trip code
+      final Map<String, Map<String, dynamic>> latestByTripCode = {};
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
       for (final key in latestPayloadsList) {
         final json = prefs.getString(key);
         if (json != null) {
           try {
             final data = jsonDecode(json) as Map<String, dynamic>;
-            results.add(data);
+
+            // Extract trip code from topic or data
+            String? tripCode;
+            final topic = data['topic'] as String?;
+            if (topic != null) {
+              if (topic.contains('trip/')) {
+                final parts = topic.split('/');
+                if (parts.length >= 2) {
+                  tripCode = parts[1];
+                }
+              } else if (topic.contains('/trip/')) {
+                final parts = topic.split('/');
+                for (int i = 0; i < parts.length - 1; i++) {
+                  if (parts[i] == 'trip') {
+                    tripCode = parts[i + 1];
+                    break;
+                  }
+                }
+              }
+            }
+
+            // Skip if we can't determine trip code
+            if (tripCode == null) {
+              continue;
+            }
+
+            // Check if message is too old
+            final timestamp = data['timestamp'] as int? ?? 0;
+            final age = now - timestamp;
+            if (age > maxAge) {
+              print(
+                'MqttPayloadHandler: Skipping expired payload for trip $tripCode (age: ${(age / (1000 * 60)).round()} minutes)',
+              );
+              continue;
+            }
+
+            // Check if this is newer than what we have for this trip code
+            if (!latestByTripCode.containsKey(tripCode) ||
+                (latestByTripCode[tripCode]!['timestamp'] as int? ?? 0) <
+                    timestamp) {
+              latestByTripCode[tripCode] = data;
+              print(
+                'MqttPayloadHandler: Found newer payload for trip $tripCode with timestamp $timestamp',
+              );
+            }
           } catch (e) {
             print('MqttPayloadHandler: Error parsing stored payload: $e');
           }
         }
       }
 
+      // Convert the map to a list for return
+      final results = latestByTripCode.values.toList();
+      print(
+        'MqttPayloadHandler: Returning ${results.length} latest messages after filtering',
+      );
       return results;
     } catch (e) {
       print('MqttPayloadHandler: Error loading latest messages: $e');
@@ -477,30 +547,113 @@ class MqttPayloadHandler {
   Future<void> restoreStateFromStoredPayloads() async {
     if (_providerContainer == null) return;
 
-    final messages = await loadLatestMessages();
-    print(
-      'MqttPayloadHandler: Restoring state from ${messages.length} stored payloads',
-    );
+    try {
+      // First, get a list of all active trip codes from TripStorageService
+      final tripStorageService = TripStorageService();
+      final activeTripCodes = await tripStorageService.getAllActiveTripCodes();
 
-    for (final message in messages) {
-      try {
-        // Process each stored message
-        final topic = message['topic'] as String?;
-        if (topic == null) continue;
+      print(
+        'MqttPayloadHandler: Found ${activeTripCodes.length} active trips in TripStorageService',
+      );
 
-        // Re-process each message based on topic type
-        if (topic.contains('robot') && topic.contains('status')) {
-          await _processRobotStatusMessage(message);
-        } else if (topic.contains('trip') && topic.contains('progress')) {
-          await _processTripProgressMessage(message);
-        } else if (topic.contains('robot') && topic.contains('trip')) {
-          await _processRobotTripMessage(message);
-        } else if (topic.contains('robot') && topic.contains('location')) {
-          await _processRobotLocationMessage(message);
+      // Load messages from mqtt_payload storage
+      final messages = await loadLatestMessages();
+      print(
+        'MqttPayloadHandler: Loaded ${messages.length} messages from mqtt_payload storage',
+      );
+
+      // Process messages only if they're relevant to active trips
+      final validMessages = <Map<String, dynamic>>[];
+
+      for (final message in messages) {
+        try {
+          // Extract trip code from topic or data
+          String? tripCode;
+          final topic = message['topic'] as String?;
+          if (topic == null) continue;
+
+          if (topic.contains('trip/')) {
+            final parts = topic.split('/');
+            for (int i = 0; i < parts.length - 1; i++) {
+              if (i + 1 < parts.length && parts[i] == 'trip') {
+                tripCode = parts[i + 1];
+                break;
+              }
+            }
+          } else if (topic.contains('/trip/')) {
+            final parts = topic.split('/');
+            for (int i = 0; i < parts.length - 1; i++) {
+              if (i + 1 < parts.length && parts[i] == 'trip') {
+                tripCode = parts[i + 1];
+                break;
+              }
+            }
+          }
+
+          // Skip messages not related to any active trip
+          if (tripCode == null || !activeTripCodes.contains(tripCode)) {
+            continue;
+          }
+
+          // For trip progress messages, check if we have more recent data in TripStorageService
+          if (topic.contains('trip') || topic.contains('/trip/')) {
+            final timestamp = message['timestamp'] as int? ?? 0;
+            final cachedData = await tripStorageService.loadCachedTripProgress(
+              tripCode,
+            );
+
+            if (cachedData != null) {
+              final cachedTimestamp = cachedData['timestamp'] as int? ?? 0;
+
+              // Skip if TripStorageService has more recent data
+              if (cachedTimestamp > timestamp) {
+                print(
+                  'MqttPayloadHandler: Skipping mqtt_payload for trip $tripCode as TripStorageService has newer data',
+                );
+                continue;
+              }
+            }
+          }
+
+          // Add to valid messages if it passed all checks
+          validMessages.add(message);
+        } catch (e) {
+          print('MqttPayloadHandler: Error checking message relevance: $e');
         }
-      } catch (e) {
-        print('MqttPayloadHandler: Error processing stored message: $e');
       }
+
+      print(
+        'MqttPayloadHandler: Restoring state from ${validMessages.length} valid payloads after filtering',
+      );
+
+      // Process only valid messages
+      for (final message in validMessages) {
+        try {
+          final topic = message['topic'] as String?;
+          if (topic == null) continue;
+
+          // Mark the message as coming from cache to prevent feedback loops
+          final markedMessage = {
+            ...message,
+            'fromCache': true, // Add marker to prevent re-storing
+          };
+
+          // Re-process each message based on topic type
+          if (topic.contains('robot') && topic.contains('status')) {
+            await _processRobotStatusMessage(markedMessage);
+          } else if (topic.contains('trip') && topic.contains('progress')) {
+            await _processTripProgressMessage(markedMessage);
+          } else if (topic.contains('robot') && topic.contains('trip')) {
+            await _processRobotTripMessage(markedMessage);
+          } else if (topic.contains('robot') && topic.contains('location')) {
+            await _processRobotLocationMessage(markedMessage);
+          }
+        } catch (e) {
+          print('MqttPayloadHandler: Error processing stored message: $e');
+        }
+      }
+    } catch (e) {
+      print('MqttPayloadHandler: Error in restoreStateFromStoredPayloads: $e');
     }
   }
 

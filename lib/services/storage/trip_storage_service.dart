@@ -12,107 +12,157 @@ class TripStorageService {
   /// Private constructor for singleto n pattern
   TripStorageService._internal();
 
-  /// Load cached trip progress from local storage
-  /// Returns a map containing the progress data or null if no valid cache exists
   Future<Map<String, dynamic>?> loadCachedTripProgress(
     String tripCode, {
     String? robotCode,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-      // First try to load from raw progress updates (most recent)
-      // If robotCode is provided, use the full key with robot code, otherwise try to find any raw progress for this trip
-      String? rawUpdateData;
+      // Track all data sources to find the most recent
+      Map<String, dynamic>? mostRecentData;
+      int mostRecentTimestamp = 0;
+      String dataSource = 'none';
+
+      // STEP 1: Get all possible raw progress keys for this trip
+      final allKeys = prefs.getKeys();
+      final rawProgressKeys = <String>[];
+
+      // If we have a specific robot code, check that key first
       if (robotCode != null) {
-        // Try with the specific robot code first
         final specificKey = 'raw_progress_${robotCode}_$tripCode';
-        rawUpdateData = prefs.getString(specificKey);
+        if (allKeys.contains(specificKey)) {
+          rawProgressKeys.add(specificKey);
+        }
       }
 
-      if (rawUpdateData == null) {
-        // If no data found with specific robot code or no robot code provided,
-        // search for any keys that contain this trip code
-        final allKeys = prefs.getKeys();
-        final matchingKeys = allKeys
+      // Find any other raw progress keys for this trip
+      rawProgressKeys.addAll(
+        allKeys
             .where(
               (key) =>
-                  key.startsWith('raw_progress_') && key.endsWith('_$tripCode'),
+                  key.startsWith('raw_progress_') &&
+                  key.endsWith('_$tripCode') &&
+                  !rawProgressKeys.contains(key),
             )
-            .toList();
+            .toList(),
+      );
 
-        if (matchingKeys.isNotEmpty) {
-          // Use the first matching key found
-          rawUpdateData = prefs.getString(matchingKeys.first);
+      print(
+        'TripStorageService: Found ${rawProgressKeys.length} raw progress keys for trip $tripCode',
+      );
+
+      // STEP 2: Process all raw progress keys to find the most recent
+      for (final key in rawProgressKeys) {
+        final rawUpdateData = prefs.getString(key);
+        if (rawUpdateData == null) continue;
+
+        try {
+          final rawData = jsonDecode(rawUpdateData) as Map<String, dynamic>;
+          final timestamp = rawData['timestamp'] as int? ?? 0;
+          final storedAt = rawData['stored_at'] as int? ?? timestamp;
+          final latestTimestamp = storedAt > timestamp ? storedAt : timestamp;
+
+          // Skip data that's too old
+          final cacheAge = now - latestTimestamp;
+          if (cacheAge > maxAge) {
+            print(
+              'TripStorageService: Skipping expired data for key $key (age: ${(cacheAge / (1000 * 60)).round()} minutes)',
+            );
+            continue;
+          }
+
+          // If this is the most recent data we've found, keep it
+          if (latestTimestamp > mostRecentTimestamp) {
+            mostRecentData = rawData;
+            mostRecentTimestamp = latestTimestamp;
+            dataSource = 'raw_progress';
+            print(
+              'TripStorageService: Found newer data from key $key with timestamp $latestTimestamp',
+            );
+          }
+        } catch (e) {
           print(
-            'TripStorageService: Found raw progress data using key: ${matchingKeys.first}',
+            'TripStorageService: Error parsing raw update data from $key: $e',
           );
         }
       }
 
-      if (rawUpdateData != null) {
-        try {
-          final rawData = jsonDecode(rawUpdateData);
-          final timestamp = rawData['timestamp'] as int? ?? 0;
-          final now = DateTime.now().millisecondsSinceEpoch;
-          final cacheAge = now - timestamp;
-          final maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-          if (cacheAge <= maxAge) {
-            // Use the raw progress data
-            final progress = rawData['progress'] as num?;
-            print(
-              'TripStorageService: Restored from raw update with progress: ${progress?.toStringAsFixed(1)}%, full data: $rawData',
-            );
-            return rawData;
-          } else {
-            // Raw data too old, clear it
-            // Find and remove all raw progress data for this trip code
-            final allKeys = prefs.getKeys();
-            final keysToRemove = allKeys
-                .where(
-                  (key) =>
-                      key.startsWith('raw_progress_') &&
-                      key.endsWith('_$tripCode'),
-                )
-                .toList();
-
-            for (final key in keysToRemove) {
-              await prefs.remove(key);
-              print('TripStorageService: Removed expired data with key: $key');
-            }
-          }
-        } catch (e) {
-          print('TripStorageService: Error parsing raw update data: $e');
-        }
-      }
-
-      // If no raw data was loaded, try the regular cache
+      // STEP 3: Check the legacy cache format
       final cacheKey = 'trip_progress_$tripCode';
       final cachedData = prefs.getString(cacheKey);
 
       if (cachedData != null) {
-        final data = jsonDecode(cachedData);
+        try {
+          final data = jsonDecode(cachedData) as Map<String, dynamic>;
+          final timestamp = data['timestamp'] as int? ?? 0;
 
-        // Check if cache is not too old (expire after 24 hours)
-        final timestamp = data['timestamp'] as int? ?? 0;
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final cacheAge = now - timestamp;
-        final maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-        if (cacheAge > maxAge) {
-          print('TripStorageService: Cache expired, clearing old data');
-          await prefs.remove(cacheKey);
-          return null;
+          // Skip if too old
+          final cacheAge = now - timestamp;
+          if (cacheAge <= maxAge) {
+            // Only use if more recent than raw data
+            if (timestamp > mostRecentTimestamp) {
+              mostRecentData = data;
+              mostRecentTimestamp = timestamp;
+              dataSource = 'trip_progress';
+              print(
+                'TripStorageService: Found newer data in trip_progress cache with timestamp $timestamp',
+              );
+            }
+          } else {
+            print(
+              'TripStorageService: Legacy cache expired, age: ${(cacheAge / (1000 * 60)).round()} minutes',
+            );
+            // Clean up expired data
+            await prefs.remove(cacheKey);
+          }
+        } catch (e) {
+          print('TripStorageService: Error parsing legacy cached data: $e');
         }
-
-        final progress = data['progress'] as double?;
-        print(
-          'TripStorageService: Loading cached progress data with progress: ${progress != null ? (progress * 100).toStringAsFixed(1) : "null"}%, full data: $data',
-        );
-        return data;
       }
 
+      // STEP 4: Check global progress data (for progress value only)
+      final globalProgressKey = 'global_progress_$tripCode';
+      if (prefs.containsKey(globalProgressKey)) {
+        final globalProgress = prefs.getDouble(globalProgressKey);
+
+        if (globalProgress != null) {
+          // If we don't have any data yet, create basic data with just the progress
+          if (mostRecentData == null) {
+            mostRecentData = {
+              'progress': globalProgress,
+              'timestamp':
+                  now, // Use current time as we don't know when it was stored
+            };
+            dataSource = 'global_progress';
+            print(
+              'TripStorageService: Using global progress tracking: $globalProgress',
+            );
+          }
+          // If we do have data but without a progress value, add it
+          else if (!mostRecentData.containsKey('progress')) {
+            mostRecentData['progress'] = globalProgress;
+            print(
+              'TripStorageService: Added missing progress from global tracking: $globalProgress',
+            );
+          }
+        }
+      }
+
+      // Return the most recent data we found, or null if nothing valid was found
+      if (mostRecentData != null) {
+        final progress = mostRecentData['progress'];
+        print(
+          'TripStorageService: Loaded progress data from $dataSource with progress: ${progress != null ? progress.toString() : "null"}, timestamp: $mostRecentTimestamp',
+        );
+        return mostRecentData;
+      }
+
+      print(
+        'TripStorageService: No valid cached data found for trip $tripCode',
+      );
       return null;
     } catch (e) {
       print('TripStorageService: Error loading cached progress: $e');
@@ -169,7 +219,8 @@ class TripStorageService {
   final Map<String, String> _lastStorageHashes = {};
 
   /// Store raw progress update in local storage for persistence across app lifecycle
-  /// with debouncing and duplicate message prevention
+  /// Always stores the latest progress value, replacing any previous data for this trip
+  /// with minimal deduplication logic (only debouncing rapid updates)
   Future<void> storeRawProgressUpdate({
     required String robotCode,
     required String tripCode,
@@ -185,7 +236,8 @@ class TripStorageService {
       // Get current timestamp
       final now = DateTime.now().millisecondsSinceEpoch;
 
-      // Debounce: only store updates if at least 500ms have passed since the last one
+      // Only apply debouncing for rapid updates (within 500ms)
+      // but always store the value otherwise, even if content hasn't changed
       final lastTimestamp = _lastStorageTimestamps[storageKey] ?? 0;
       if (now - lastTimestamp < 500) {
         print(
@@ -194,29 +246,31 @@ class TripStorageService {
         return;
       }
 
-      // Check for duplicate data
-      final dataHash = _generateDataHash(data);
-      final prevHash = _lastStorageHashes[storageKey];
-
-      if (dataHash == prevHash) {
-        print(
-          'TripStorageService: Skipping duplicate progress update for $storageKey. Current progress: ${data['progress']}, previous hash: $prevHash',
-        );
-        return;
-      }
-
-      print(
-        'TripStorageService: Storing new progress update. Previous hash: $prevHash, new hash: $dataHash, progress: ${data['progress']}',
-      );
-
       final prefs = await SharedPreferences.getInstance();
 
       // Use a key that includes both robot and trip codes to ensure uniqueness
       final rawUpdateKey = 'raw_progress_${robotCode}_$tripCode';
 
-      // Store the entire payload with a timestamp
-      final storedData = {...data, 'timestamp': now};
+      // Check for existing data for logging
+      final existingDataStr = prefs.getString(rawUpdateKey);
+      if (existingDataStr != null) {
+        try {
+          final existingData =
+              jsonDecode(existingDataStr) as Map<String, dynamic>;
+          final oldProgress = existingData['progress'];
 
+          print(
+            'TripStorageService: Replacing progress value from $oldProgress to $progress for trip: $tripCode',
+          );
+        } catch (e) {
+          print('TripStorageService: Error parsing existing data: $e');
+        }
+      }
+
+      // Store the entire payload with timestamps
+      final storedData = {...data, 'timestamp': now, 'stored_at': now};
+
+      // Always store the latest data, replacing any previous value
       await prefs.setString(rawUpdateKey, jsonEncode(storedData));
 
       // Also update global progress tracking
@@ -228,12 +282,15 @@ class TripStorageService {
         'TripStorageService: Updated global progress for $tripCode to ${(progressValue * 100).toStringAsFixed(1)}%',
       );
 
-      // Update timestamp and hash tracking
+      // Update timestamp tracking
       _lastStorageTimestamps[storageKey] = now;
+
+      // Still track hash for debugging purposes
+      final dataHash = _generateDataHash(data);
       _lastStorageHashes[storageKey] = dataHash;
 
       print(
-        'TripStorageService: Stored raw progress update in local storage: $progress for $storageKey',
+        'TripStorageService: Stored latest progress update in local storage: $progress for $storageKey',
       );
     } catch (e) {
       print('TripStorageService: Error storing raw progress update: $e');
@@ -357,6 +414,99 @@ class TripStorageService {
     } catch (e) {
       print('TripStorageService: Error getting active trip codes: $e');
       return [];
+    }
+  }
+
+  /// Verify that only the latest data is being stored for each trip
+  /// This is a debugging utility to confirm our persistence strategy is working
+  Future<Map<String, dynamic>> verifyLatestOnlyStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final allKeys = prefs.getKeys();
+
+      // Group data by trip code
+      final Map<String, List<Map<String, dynamic>>> tripData = {};
+
+      // Analyze raw progress keys
+      final rawProgressKeys = allKeys
+          .where((key) => key.startsWith('raw_progress_'))
+          .toList();
+
+      for (final key in rawProgressKeys) {
+        // Extract trip code from key format: raw_progress_{robotCode}_{tripCode}
+        final parts = key.split('_');
+        if (parts.length >= 3) {
+          final tripCode = parts.last;
+
+          if (!tripData.containsKey(tripCode)) {
+            tripData[tripCode] = [];
+          }
+
+          final dataStr = prefs.getString(key);
+          if (dataStr != null) {
+            try {
+              final data = jsonDecode(dataStr) as Map<String, dynamic>;
+              tripData[tripCode]!.add({
+                'key': key,
+                'data': data,
+                'timestamp': data['timestamp'] ?? 'unknown',
+                'progress': data['progress'] ?? 'unknown',
+              });
+            } catch (e) {
+              print('Error parsing data for key $key: $e');
+            }
+          }
+        }
+      }
+
+      // Check for duplicate entries
+      final tripsWithMultipleEntries = <String>[];
+      tripData.forEach((tripCode, entries) {
+        if (entries.length > 1) {
+          tripsWithMultipleEntries.add(tripCode);
+        }
+      });
+
+      // Check global progress tracking
+      final globalProgressKeys = allKeys
+          .where((key) => key.startsWith('global_progress_'))
+          .toList();
+
+      final tripsWithoutGlobalProgress = <String>[];
+      final tripsWithoutRawData = <String>[];
+
+      // Find trips with raw data but no global tracking
+      for (final tripCode in tripData.keys) {
+        final globalKey = 'global_progress_$tripCode';
+        if (!globalProgressKeys.contains(globalKey)) {
+          tripsWithoutGlobalProgress.add(tripCode);
+        }
+      }
+
+      // Find trips with global tracking but no raw data
+      for (final key in globalProgressKeys) {
+        final tripCode = key.substring('global_progress_'.length);
+        if (!tripData.containsKey(tripCode)) {
+          tripsWithoutRawData.add(tripCode);
+        }
+      }
+
+      return {
+        'total_trips_stored': tripData.length,
+        'trips_with_multiple_entries': tripsWithMultipleEntries,
+        'duplicate_count': tripsWithMultipleEntries.length,
+        'trips_without_global_progress': tripsWithoutGlobalProgress,
+        'trips_without_raw_data': tripsWithoutRawData,
+        'status': tripsWithMultipleEntries.isEmpty
+            ? 'clean'
+            : 'duplicates_found',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    } catch (e) {
+      return {
+        'error': e.toString(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
     }
   }
 }
