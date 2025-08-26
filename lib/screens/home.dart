@@ -7,7 +7,7 @@ import 'package:zippy/models/entity/location/location.dart';
 import 'package:zippy/providers/auth/auth_provider.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/screens/booking/booking_screen.dart';
-import 'package:zippy/screens/payment/payment_screen.dart';
+import 'package:zippy/screens/payment/payment_management_screen.dart';
 import 'package:zippy/screens/pickup/pickup_screen.dart';
 import 'package:zippy/screens/staff/robots_screen.dart';
 import 'package:zippy/screens/staff/orders_management_screen.dart';
@@ -236,7 +236,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: () {
                 NavigationManager.navigateToWithSlideTransition(
                   context,
-                  const PaymentScreen(),
+                  const PaymentManagementScreen(),
                 );
               },
               icon: LucideIcons.creditCard,

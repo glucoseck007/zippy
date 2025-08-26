@@ -419,9 +419,48 @@
       "no_orders": "Không tìm thấy đơn hàng"
     }
   },
+  "payment": {
+    "title": "Thanh toán",
+    "creating_payment": "Đang tạo thanh toán...",
+    "order_summary": "Tóm tắt đơn hàng",
+    "order_id": "Mã đơn hàng",
+    "amount": "Số tiền",
+    "description": "Mô tả",
+    "verifying_payment": "Đang xác minh thanh toán...",
+    "please_wait": "Vui lòng đợi trong khi chúng tôi xác nhận thanh toán của bạn",
+    "success_title": "Thanh toán thành công!",
+    "success_message": "Thanh toán của bạn đã được xử lý thành công. Đơn hàng của bạn đã được xác nhận.",
+    "failed_title": "Thanh toán thất bại",
+    "error_title": "Lỗi thanh toán",
+    "continue": "Tiếp tục",
+    "try_again": "Thử lại",
+    "retry": "Thử lại",
+    "cancel_payment_title": "Hủy thanh toán?",
+    "cancel_payment_message": "Bạn có chắc chắn muốn hủy thanh toán này? Thanh toán của bạn sẽ không được xử lý.",
+    "success_order_confirmed": "Thanh toán thành công! Đơn hàng của bạn đã được xác nhận.",
+    "failed_try_again": "Thanh toán thất bại. Vui lòng thử lại.",
+    "management": {
+      "title": "Quản lý thanh toán",
+      "unpaid_tab": "Chưa thanh toán",
+      "paid_tab": "Đã thanh toán",
+      "loading_orders": "Đang tải đơn hàng...",
+      "error_loading": "Lỗi tải đơn hàng",
+      "no_unpaid_orders": "Không có đơn hàng chưa thanh toán",
+      "no_unpaid_orders_subtitle": "Tất cả đơn hàng đã được thanh toán hoặc bạn chưa có đơn hàng nào.",
+      "no_paid_orders": "Không có đơn hàng đã thanh toán",
+      "delivery_to": "Giao đến: {location}",
+      "pay_now": "Thanh toán ngay",
+      "paid": "Đã thanh toán",
+      "payment_completed": "Đã hoàn thành thanh toán"
+    }
+  },
   "common": {
     "cancel": "Hủy",
     "confirm": "Xác nhận",
-    "ok": "OK"
+    "ok": "OK",
+    "yes": "Có",
+    "no": "Không",
+    "retry": "Thử lại",
+    "error_occurred": "Đã xảy ra lỗi. Vui lòng thử lại."
   }
 }

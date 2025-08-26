@@ -5,12 +5,16 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'app.dart';
+import 'services/deep_link/deep_link_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   await EasyLocalization.ensureInitialized();
   await dotenv.load(fileName: '.env');
+
+  // Initialize deep link service for payment handling
+  await DeepLinkService.initialize();
 
   runApp(
     Phoenix(

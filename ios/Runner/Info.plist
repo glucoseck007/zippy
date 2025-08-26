@@ -53,5 +53,16 @@
 		<string>This app needs access to location when in the background for delivery tracking.</string>
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>This app needs access to location when open and in the background for delivery tracking.</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>zippy.payment</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>zippy</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

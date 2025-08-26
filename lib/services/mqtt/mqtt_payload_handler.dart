@@ -54,10 +54,6 @@ class MqttPayloadHandler {
       if (topic.contains('robot') && topic.contains('status')) {
         await _processRobotStatusMessage(data);
       }
-      // Handle trip progress updates via format: trip/{tripCode}/progress
-      else if (topic.contains('trip') && topic.contains('progress')) {
-        await _processTripProgressMessage(data);
-      }
       // Handle trip progress updates via format: robot/{robotCode}/trip/{tripCode}
       else if (topic.contains('robot') && topic.contains('trip')) {
         await _processRobotTripMessage(data);
@@ -101,51 +97,6 @@ class MqttPayloadHandler {
 
     // Generate notifications based on status
     await _generateRobotStatusNotifications(robotId, status, data);
-  }
-
-  /// Process trip progress messages
-  Future<void> _processTripProgressMessage(Map<String, dynamic> data) async {
-    try {
-      final topic = data['topic'] as String?;
-      if (topic == null) return;
-
-      // Extract trip code from topic (format: trip/{tripCode}/progress)
-      final topicParts = topic.split('/');
-      if (topicParts.length < 3) return;
-
-      final tripCode = topicParts[1];
-      final progress = data['progress'] as num?;
-      final status = data['status'] as String?;
-      final robotId = data['robotId'] as String?;
-
-      if (tripCode.isEmpty) return;
-
-      // Persist trip progress
-      await _persistTripProgress(tripCode, data);
-
-      // Update robot state if applicable
-      if (robotId != null && _providerContainer != null && progress != null) {
-        // Use existing robot provider methods to update state
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotTripProgress(
-              robotId: robotId,
-              tripCode: tripCode,
-              progress: progress is double ? progress : progress.toDouble(),
-              payload: data,
-            );
-      }
-
-      // Generate trip progress notifications
-      await _generateTripProgressNotifications(
-        tripCode,
-        progress,
-        status,
-        data,
-      );
-    } catch (e) {
-      print('MqttPayloadHandler: Error processing trip message: $e');
-    }
   }
 
   /// Process robot trip messages (format: robot/{robotCode}/trip/{tripCode})
@@ -641,8 +592,6 @@ class MqttPayloadHandler {
           // Re-process each message based on topic type
           if (topic.contains('robot') && topic.contains('status')) {
             await _processRobotStatusMessage(markedMessage);
-          } else if (topic.contains('trip') && topic.contains('progress')) {
-            await _processTripProgressMessage(markedMessage);
           } else if (topic.contains('robot') && topic.contains('trip')) {
             await _processRobotTripMessage(markedMessage);
           } else if (topic.contains('robot') && topic.contains('location')) {

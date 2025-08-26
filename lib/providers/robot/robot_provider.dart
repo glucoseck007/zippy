@@ -30,89 +30,93 @@ class RobotNotifier extends StateNotifier<RobotState> {
       // Get the topic from the message
       final topic = data['topic'] as String?;
 
-      // Extract or infer robot information from MQTT message
-      String? robotId = data['robotId'] as String?;
-      String? messageType = data['messageType'] as String?;
-
-      // Try to infer message type and robot ID from topic if missing
-      if (topic != null) {
-        // Extract from topic pattern robot/{robotCode}/trip/{tripCode}
-        if (topic.contains('/trip/') &&
-            (robotId == null || messageType == null)) {
-          final parts = topic.split('/');
-          if (parts.length >= 4 && parts[0] == 'robot') {
-            // Extract robot ID from topic if not provided
-            if (robotId == null) {
-              robotId = parts[1];
-              print('RobotProvider: Inferred robotId from topic: $robotId');
-            }
-
-            // Set messageType for trip progress messages
-            if (messageType == null) {
-              messageType = 'trip_progress';
-              print(
-                'RobotProvider: Inferred messageType as trip_progress from topic',
-              );
-            }
-          }
-        }
-      }
-
-      if (robotId == null || messageType == null) {
-        print('RobotProvider: Invalid update - missing robotId or messageType');
+      if (topic == null) {
+        print('RobotProvider: Invalid update - missing topic');
         return;
       }
 
+      print('RobotProvider: Processing topic: $topic');
+
+      // Parse topic to determine message type and extract robot ID
+      final parts = topic.split('/');
+
+      if (parts.isEmpty || parts[0] != 'robot') {
+        print(
+          'RobotProvider: Invalid topic format - does not start with robot/',
+        );
+        return;
+      }
+
+      // Extract robot ID (should be at index 1)
+      if (parts.length < 2) {
+        print('RobotProvider: Invalid topic format - missing robot ID');
+        return;
+      }
+
+      final robotId = parts[1];
       print('RobotProvider: Processing update for robot: $robotId');
-      print('RobotProvider: Message type: $messageType');
 
-      // Route to appropriate handler based on message type
-      switch (messageType) {
-        case 'robot_status':
-          final status = data['status'] as String?;
-          if (status != null) {
-            _handleRobotStatusUpdateForStep3(data);
-          }
-          break;
+      // Determine message type based on topic pattern and route to appropriate handler
+      Map<String, dynamic> processedData = Map.from(data);
+      processedData['robotId'] = robotId;
 
-        case 'container_status':
-          _handleContainerStatusUpdate(data);
-          break;
+      if (topic.contains('/location')) {
+        // Topic: robot/+/location
+        print('RobotProvider: Message type: robot_location');
+        _handleRobotLocationUpdate(processedData);
+      } else if (topic.contains('/battery')) {
+        // Topic: robot/+/battery
+        print('RobotProvider: Message type: robot_battery');
+        _handleRobotBatteryUpdate(processedData);
+      } else if (topic.contains('/status')) {
+        // Topic: robot/+/status
+        print('RobotProvider: Message type: robot_status');
+        final status = data['status'] as String?;
+        if (status != null) {
+          _handleRobotStatusUpdateForStep3(processedData);
+        }
+      } else if (topic.contains('/container/') && topic.contains('/status')) {
+        // Topic: robot/+/container/+/status
+        print('RobotProvider: Message type: container_status');
 
-        case 'robot_location':
-          _handleRobotLocationUpdate(data);
-          break;
+        // Extract container ID from topic (should be at index 3)
+        if (parts.length >= 4) {
+          final containerId = parts[3];
+          processedData['containerId'] = containerId;
+          print('RobotProvider: Container ID: $containerId');
+          _handleContainerStatusUpdate(processedData);
+        } else {
+          print(
+            'RobotProvider: Invalid container topic format - missing container ID',
+          );
+        }
+      } else if (topic.contains('/trip/')) {
+        // Topic: robot/+/trip/+
+        print('RobotProvider: Message type: trip_progress');
 
-        case 'robot_battery':
-          _handleRobotBatteryUpdate(data);
-          break;
+        // Extract trip code from topic (should be at index 3)
+        if (parts.length >= 4) {
+          final tripCode = parts[3];
+          processedData['tripCode'] = tripCode;
+          print('RobotProvider: Trip code: $tripCode');
 
-        case 'trip_progress':
-          // Extract required fields from the message
-          final tripCode =
-              data['tripCode'] as String? ??
-              (topic != null && topic.contains('/trip/')
-                  ? topic.split('/').lastOrNull
-                  : null);
           final progress = data['progress'] as num?;
-
-          if (tripCode != null && progress != null) {
-            // Forward to the dedicated trip progress method
+          if (progress != null) {
             updateRobotTripProgress(
               robotId: robotId,
               tripCode: tripCode,
               progress: progress is double ? progress : progress.toDouble(),
-              payload: data,
+              payload: processedData,
             );
           } else {
-            print(
-              'RobotProvider: Missing required fields for trip progress update',
-            );
+            print('RobotProvider: Missing progress field for trip update');
           }
-          break;
-
-        default:
-          print('RobotProvider: Unknown message type: $messageType');
+        } else {
+          print('RobotProvider: Invalid trip topic format - missing trip code');
+        }
+      } else {
+        print('RobotProvider: Unknown topic pattern: $topic');
+        return;
       }
 
       print('RobotProvider: === MQTT UPDATE COMPLETED ===');
@@ -793,10 +797,6 @@ class RobotNotifier extends StateNotifier<RobotState> {
     required Map<String, dynamic> payload,
   }) {
     try {
-      print(
-        'RobotProvider: External update for trip $tripCode progress: $progress',
-      );
-
       // Get current state
       final currentState = state;
       if (!currentState.isLoaded) return;

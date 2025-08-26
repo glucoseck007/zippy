@@ -9,8 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../design/app_colors.dart';
 import '../../design/app_typography.dart';
 import '../../providers/core/theme_provider.dart';
-import '../../services/api_client.dart';
+import '../../providers/trip/trip_progress_provider.dart';
 import '../../services/mqtt/mqtt_service.dart';
+import '../../services/trip/trip_service.dart';
+import '../../state/trip/trip_progress_state.dart';
 import '../../services/native/background_service.dart';
 import '../../services/storage/trip_storage_service.dart';
 import '../../services/mqtt/mqtt_subscription_service.dart';
@@ -39,33 +41,27 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
-  double _progress = 0.0;
-  Timer? _progressTimer;
   Timer? _activityTimer; // Timer to update app activity timestamp
-  String? _tripStartPoint;
-  String? _tripEndPoint;
-  bool _hasPickupPhase = false; // Track if we've seen pickup phase data
-  bool _hasDeliveryPhase = false; // Track if we've seen delivery phase data
-
-  // Phase tracking for QR verification
-  bool _phase1QRScanned = false; // Sender scan at pickup location
-  bool _phase2QRScanned = false; // Receiver scan at delivery location
-  bool _phase1NotificationSent =
-      false; // Track if notification sent for phase 1
-  bool _phase2NotificationSent =
-      false; // Track if notification sent for phase 2
-  bool _awaitingPhase1QR = false; // Robot reached pickup, waiting for sender QR
-  bool _awaitingPhase2QR =
-      false; // Robot reached delivery, waiting for receiver QR
 
   // Robot animation
   late AnimationController _robotAnimationController;
   late Animation<double> _robotAnimation;
 
+  // Trip progress provider
+  late StateNotifierProvider<TripProgressNotifier, TripProgressState>
+  _tripProgressProvider;
+
   @override
   @override
   void initState() {
     super.initState();
+
+    // Initialize the trip progress provider
+    _tripProgressProvider = tripProgressProvider(
+      tripCode: widget.tripCode,
+      orderCode: widget.orderCode,
+      robotCode: widget.robotCode,
+    );
 
     // Add app lifecycle observer
     WidgetsBinding.instance.addObserver(this);
@@ -91,16 +87,45 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
       ),
     );
 
-    // Initialize services
-    _initializeServices();
+    // Initialize services and data
+    _initializeAll();
+  }
 
-    // Load cached trip progress first, then fetch fresh data
-    _loadCachedTripProgress();
+  // Initialize all required services and data
+  Future<void> _initializeAll() async {
+    try {
+      // Initialize services
+      await _initializeServices();
 
-    _fetchTripDetails();
+      // Initialize the trip progress provider
+      await ref.read(_tripProgressProvider.notifier).initialize();
 
-    // Initialize MQTT connection and then set up subscription
-    _initializeMqttAndSubscribe();
+      // Set up callbacks for phase completion
+      ref
+          .read(_tripProgressProvider.notifier)
+          .setOnPhase1Complete(_showPhase1Notification);
+      ref
+          .read(_tripProgressProvider.notifier)
+          .setOnPhase2Complete(_showPhase2Notification);
+
+      // Fetch trip details
+      await _fetchTripDetails();
+
+      // Initialize MQTT connection and then set up subscription
+      await _initializeMqttAndSubscribe();
+
+      // Set loading to false
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('TripProgress: Error during initialization: $e');
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+        _errorMessage = e.toString();
+      });
+    }
   }
 
   // Initialize all required services
@@ -152,29 +177,20 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
 
   Future<void> _fetchTripDetails() async {
     try {
-      print(
-        'TripProgress: Fetching trip details for tripCode: ${widget.tripCode}',
-      );
-      final response = await ApiClient.get('/trip/details/${widget.tripCode}');
+      final tripDetails = await TripService.getTripDetails(widget.tripCode);
 
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
+      if (mounted && tripDetails != null) {
+        // Update trip details in the provider
+        ref
+            .read(_tripProgressProvider.notifier)
+            .updateTripDetails(
+              startPoint: tripDetails['startPoint'] as String?,
+              endPoint: tripDetails['endPoint'] as String?,
+            );
 
-        if (mounted) {
-          setState(() {
-            if (jsonData['success'] == true && jsonData['data'] != null) {
-              final data = jsonData['data'];
-              _tripStartPoint = data['startPoint'] as String?;
-              _tripEndPoint = data['endPoint'] as String?;
-              print(
-                'TripProgress: Trip details loaded - Start: $_tripStartPoint, End: $_tripEndPoint',
-              );
-            }
-            _isLoading = false;
-          });
-        }
-      } else {
-        throw Exception('Failed to fetch trip details');
+        print(
+          'TripProgress: Trip details loaded - Start: ${tripDetails['startPoint']}, End: ${tripDetails['endPoint']}',
+        );
       }
     } catch (e) {
       print('TripProgress: Error fetching trip details: $e');
@@ -231,12 +247,6 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
             onMessage: _handleMqttMessage, // Pass our UI update handler
           );
 
-      // Debug the MQTT connection
-      print('Subscribed Topics: ${MqttService.subscribedTopics}');
-      print(
-        'Is subscribed to our topic: ${MqttService.isSubscribedTo('robot/${widget.robotCode}/trip/${widget.tripCode}')}',
-      );
-
       if (success) {
         print('TripProgress: Successfully subscribed to trip progress updates');
         // Update app activity after successful MQTT connection
@@ -276,25 +286,6 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
     }
   }
 
-  // Debug method to test MQTT subscription
-  Future<void> _debugMqttStatus() async {
-    print('=== Trip Progress MQTT Debug ===');
-    print('Trip Code: ${widget.tripCode}');
-    print('Robot Code: ${widget.robotCode}');
-    print('Order Code: ${widget.orderCode}');
-    print('Expected Topic: robot/${widget.robotCode}/trip/${widget.tripCode}');
-    print('Subscribed Topics: ${MqttService.subscribedTopics}');
-    print(
-      'Is subscribed to our topic: ${MqttService.isSubscribedTo('robot/${widget.robotCode}/trip/${widget.tripCode}')}',
-    );
-
-    // Get detailed MQTT service debug info
-    final debugInfo = await MqttService.debugConnection();
-    print('MQTT Service Debug: $debugInfo');
-
-    print('================================');
-  }
-
   void _handleMqttMessage(Map<String, dynamic> data) {
     print('TripProgress: Received MQTT message: $data');
 
@@ -313,177 +304,8 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
 
     print('TripProgress: Processing message for our trip: $data');
 
-    try {
-      final progress = (data['progress'] as num?)?.toDouble();
-      final payloadStartPoint = data['start_point'] as String?;
-      final payloadEndPoint = data['end_point'] as String?;
-
-      if (progress == null) {
-        print('TripProgress: Missing progress field in MQTT message: $data');
-        return;
-      }
-
-      // Check if this data is from cache (has the marker we added)
-      final isFromCache = data['fromCache'] == true;
-
-      // Only store updates from live MQTT messages, not from cached data
-      if (!isFromCache) {
-        print('TripProgress: Storing new progress update from MQTT');
-        _storeRawProgressUpdate(data);
-      } else {
-        print(
-          'TripProgress: Using cached data, skipping storage to avoid feedback loop',
-        );
-      }
-
-      // If start/end points are missing, try to use cached values
-      final startPoint = payloadStartPoint ?? _tripStartPoint;
-      final endPoint = payloadEndPoint ?? _tripEndPoint;
-
-      // For messages missing start/end points, we'll still update the progress bar
-      if (startPoint == null || endPoint == null) {
-        // Simple progress update without phase calculation
-        if (mounted) {
-          setState(() {
-            // Check if progress is already a percentage (>1) or a decimal fraction
-            _progress = progress > 1 ? progress / 100.0 : progress;
-            print(
-              'TripProgress: Simple progress update: ${(_progress * 100).toStringAsFixed(1)}%',
-            );
-            // Save progress to cache after updating state
-            _saveTripProgress();
-
-            // Since we have a progress update, try to fetch trip details if they're missing
-            if (_tripStartPoint == null || _tripEndPoint == null) {
-              print(
-                'TripProgress: Got progress update before trip details, fetching details now',
-              );
-              _fetchTripDetails();
-            }
-          });
-        }
-        return;
-      }
-
-      if (mounted && _tripStartPoint != null && _tripEndPoint != null) {
-        setState(() {
-          // UPDATED LOGIC FOR TWO-PHASE VERIFICATION:
-
-          if (payloadEndPoint == _tripStartPoint) {
-            // Phase 1: Robot going to pickup location
-            // The robot is heading TO the pickup point (trip's start point)
-            // Check if progress is already a percentage (>1) or a decimal fraction
-            _progress =
-                (progress > 1 ? progress / 100.0 : progress) *
-                0.5; // Map 0-100% to 0-50% of total bar
-            _hasPickupPhase = true;
-
-            print('TripProgress: Phase 1 - Robot going to pickup location');
-            print(
-              'TripProgress: Payload end_point ($payloadEndPoint) == trip startPoint ($_tripStartPoint)',
-            );
-            print(
-              'TripProgress: Progress mapped to first half: ${(_progress * 100).toStringAsFixed(1)}%',
-            );
-
-            // Check if robot has reached pickup location (100% progress of phase 1)
-            if (progress >= 100.0 && !_phase1NotificationSent) {
-              _awaitingPhase1QR = true;
-              _phase1NotificationSent = true;
-              _showPhase1Notification();
-              print(
-                'TripProgress: Phase 1 complete - Robot reached pickup location, awaiting sender QR scan',
-              );
-            }
-          } else if (payloadStartPoint == _tripStartPoint) {
-            // Check if this is the FIRST message with start_point == trip startPoint
-            // This indicates Phase 1 is complete and Phase 2 is starting
-            if (!_hasDeliveryPhase && !_phase1NotificationSent) {
-              // This is the initial Phase 2 message - Phase 1 was completed instantly
-              _awaitingPhase1QR = true;
-              _phase1NotificationSent = true;
-              _showPhase1Notification();
-              print(
-                'TripProgress: Phase 1 completed instantly - Robot at pickup, awaiting sender QR scan',
-              );
-            }
-
-            // Phase 2: Robot going from pickup to delivery location
-            // The robot is departing FROM the pickup point (trip's start point)
-            if (_hasPickupPhase || _phase1QRScanned) {
-              // We've seen pickup phase or QR was scanned, so delivery is second half
-              // Check if progress is already a percentage (>1) or a decimal fraction
-              _progress =
-                  0.5 +
-                  (((progress > 1 ? progress / 100.0 : progress)) *
-                      0.5); // Map 0-100% to 50-100% of total bar
-              print(
-                'TripProgress: Phase 2 - Robot going from pickup to delivery (after pickup phase)',
-              );
-              print(
-                'TripProgress: Progress mapped to second half: ${(_progress * 100).toStringAsFixed(1)}%',
-              );
-            } else {
-              // Direct delivery without pickup phase visible
-              // Check if progress is already a percentage (>1) or a decimal fraction
-              _progress = progress > 1
-                  ? progress / 100.0
-                  : progress; // Map 0-100% to 0-100% of total bar
-              print(
-                'TripProgress: Phase 2 - Direct delivery (no pickup phase seen)',
-              );
-              print(
-                'TripProgress: Progress mapped to full bar: ${(_progress * 100).toStringAsFixed(1)}%',
-              );
-            }
-
-            _hasDeliveryPhase = true;
-
-            // Check if robot has reached delivery location (100% progress of phase 2)
-            if (progress >= 100.0 && !_phase2NotificationSent) {
-              _awaitingPhase2QR = true;
-              _phase2NotificationSent = true;
-              _showPhase2Notification();
-              print(
-                'TripProgress: Phase 2 complete - Robot reached delivery location, awaiting receiver QR scan',
-              );
-            }
-
-            print(
-              'TripProgress: Payload start_point ($payloadStartPoint) == trip startPoint ($_tripStartPoint)',
-            );
-          } else {
-            print('TripProgress: No phase match found - ignoring message');
-            print(
-              'TripProgress: Payload start: $payloadStartPoint, end: $payloadEndPoint',
-            );
-            print(
-              'TripProgress: Trip start: $_tripStartPoint, end: $_tripEndPoint',
-            );
-            return;
-          }
-
-          print(
-            'TripProgress: Final progress: ${(_progress * 100).toStringAsFixed(1)}%',
-          );
-          print(
-            'TripProgress: Has pickup phase: $_hasPickupPhase, Has delivery phase: $_hasDeliveryPhase',
-          );
-          print(
-            'TripProgress: Awaiting Phase 1 QR: $_awaitingPhase1QR, Awaiting Phase 2 QR: $_awaitingPhase2QR',
-          );
-
-          // Save progress to cache after updating state
-          _saveTripProgress();
-        });
-      } else {
-        print(
-          'TripProgress: Trip details not loaded yet - skipping progress update',
-        );
-      }
-    } catch (e) {
-      print('TripProgress: Error handling MQTT message: $e');
-    }
+    // Forward the message to the provider for processing
+    ref.read(_tripProgressProvider.notifier).handleMqttMessage(data);
   }
 
   // Handle receive order functionality (Phase 2 QR scan)
@@ -697,17 +519,8 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
     }
 
     // TODO: Send API call to open container at pickup location
-    // For now, just mark as scanned
-    setState(() {
-      _phase1QRScanned = true;
-      _awaitingPhase1QR = false;
-    });
-
-    // Update state in background monitoring service
-    BackgroundMonitoringService.instance.markPickupQRScanned(widget.tripCode);
-
-    // Save updated state to cache
-    _saveTripProgress();
+    // Update the provider state
+    ref.read(_tripProgressProvider.notifier).onPhase1QRScanned();
 
     // Show success message
     _showPhaseCompletionMessage(
@@ -736,24 +549,14 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
           orderCode: widget.orderCode,
           tripCode: tripCode,
           onSuccess: () {
-            setState(() {
-              _phase2QRScanned = true;
-              _awaitingPhase2QR = false;
-            });
-
-            // Update state in background monitoring service
-            BackgroundMonitoringService.instance.markDeliveryQRScanned(
-              widget.tripCode,
-            );
-
-            // Save final state to cache
-            _saveTripProgress();
+            // Update the provider state
+            ref.read(_tripProgressProvider.notifier).onPhase2QRScanned();
 
             // Stop background monitoring since delivery is complete
             _stopBackgroundMonitoring();
 
             // Clear the cached progress since pickup is complete
-            _clearTripProgressCache();
+            ref.read(_tripProgressProvider.notifier).clearCache();
 
             // Navigate back to pickup screen after successful pickup
             Navigator.of(context).popUntil((route) => route.isFirst);
@@ -868,146 +671,11 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
     }
   }
 
-  // Load cached trip progress from local storage
-
-  Future<void> _loadCachedTripProgress() async {
-    try {
-      print(
-        'TripProgress: Loading cached trip progress for ${widget.tripCode}',
-      );
-
-      // Use TripStorageService to load cached progress
-      final tripData = await TripStorageService().loadCachedTripProgress(
-        widget.tripCode,
-        robotCode: widget
-            .robotCode, // Pass the robot code to find the correct cached data
-      );
-
-      if (tripData != null) {
-        if (mounted) {
-          setState(() {
-            // Update progress
-            final progress = tripData['progress'] as double?;
-            if (progress != null) {
-              _progress = progress;
-            }
-
-            // Update phase tracking
-            _hasPickupPhase = tripData['hasPickupPhase'] as bool? ?? false;
-            _hasDeliveryPhase = tripData['hasDeliveryPhase'] as bool? ?? false;
-            _phase1QRScanned = tripData['phase1QRScanned'] as bool? ?? false;
-            _phase2QRScanned = tripData['phase2QRScanned'] as bool? ?? false;
-            _phase1NotificationSent =
-                tripData['phase1NotificationSent'] as bool? ?? false;
-            _phase2NotificationSent =
-                tripData['phase2NotificationSent'] as bool? ?? false;
-            _awaitingPhase1QR = tripData['awaitingPhase1QR'] as bool? ?? false;
-            _awaitingPhase2QR = tripData['awaitingPhase2QR'] as bool? ?? false;
-
-            // Check for trip endpoint data
-            if (tripData['start_point'] != null) {
-              _tripStartPoint = tripData['start_point'] as String;
-            }
-            if (tripData['end_point'] != null) {
-              _tripEndPoint = tripData['end_point'] as String;
-            }
-
-            // Set loading to false since we have data
-            _isLoading = false;
-
-            print(
-              'TripProgress: Loaded cached progress: ${(_progress * 100).toStringAsFixed(1)}%',
-            );
-            print(
-              'TripProgress: Pickup phase: $_hasPickupPhase, Delivery phase: $_hasDeliveryPhase',
-            );
-            print(
-              'TripProgress: Phase1 QR: $_phase1QRScanned, Phase2 QR: $_phase2QRScanned',
-            );
-          });
-
-          // Update BackgroundMonitoringService state
-          BackgroundMonitoringService.instance.loadStateFromProgress(
-            widget.tripCode,
-            tripData,
-          );
-        }
-      } else {
-        print('TripProgress: No cached progress data found');
-      }
-
-      // Regardless of cache state, try to fetch trip details for the latest data
-      if (_tripStartPoint == null || _tripEndPoint == null) {
-        _fetchTripDetails();
-      }
-    } catch (e) {
-      print('TripProgress: Error loading cached progress: $e');
-    }
-  }
-
-  // Save current trip progress to local storage
-  Future<void> _saveTripProgress() async {
-    try {
-      await TripStorageService().saveTripProgress(
-        tripCode: widget.tripCode,
-        orderCode: widget.orderCode,
-        robotCode: widget.robotCode,
-        progress: _progress,
-        hasPickupPhase: _hasPickupPhase,
-        hasDeliveryPhase: _hasDeliveryPhase,
-        phase1QRScanned: _phase1QRScanned,
-        phase2QRScanned: _phase2QRScanned,
-        phase1NotificationSent: _phase1NotificationSent,
-        phase2NotificationSent: _phase2NotificationSent,
-        awaitingPhase1QR: _awaitingPhase1QR,
-        awaitingPhase2QR: _awaitingPhase2QR,
-      );
-
-      print(
-        'TripProgress: Saved progress to cache - Progress: ${(_progress * 100).toStringAsFixed(1)}%',
-      );
-
-      // Also update the background monitoring service state
-      final tripState = BackgroundMonitoringService.instance.getTripState(
-        widget.tripCode,
-      );
-      print('TripProgress: Current background monitoring state: $tripState');
-    } catch (e) {
-      print('TripProgress: Error saving progress to cache: $e');
-    }
-  }
-
-  // Clear cached trip progress (call when pickup is completed)
-  Future<void> _clearTripProgressCache() async {
-    try {
-      await TripStorageService().clearTripProgressCache(widget.tripCode);
-      print('TripProgress: Cleared cached progress data');
-    } catch (e) {
-      print('TripProgress: Error clearing cached progress: $e');
-    }
-  }
-
-  // Store raw progress update in local storage for persistence across app lifecycle
-  Future<void> _storeRawProgressUpdate(Map<String, dynamic> data) async {
-    try {
-      await TripStorageService().storeRawProgressUpdate(
-        robotCode: widget.robotCode,
-        tripCode: widget.tripCode,
-        data: data,
-      );
-
-      print('TripProgress: Stored raw progress update');
-    } catch (e) {
-      print('TripProgress: Error storing raw progress update: $e');
-    }
-  }
-
   @override
   void dispose() {
     // Remove app lifecycle observer
     WidgetsBinding.instance.removeObserver(this);
 
-    _progressTimer?.cancel();
     _activityTimer?.cancel(); // Cancel activity timer
     _robotAnimationController.dispose();
 
@@ -1068,8 +736,8 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
       // Update app activity timestamp
       await TripStorageService().updateAppActivityTimestamp();
 
-      // Load any cached progress that might have been updated in background
-      await _loadCachedTripProgress();
+      // Re-initialize the provider to load any cached progress that might have been updated in background
+      await ref.read(_tripProgressProvider.notifier).initialize();
 
       // Reconnect MQTT if needed
       await _initializeMqttAndSubscribe();
@@ -1107,6 +775,9 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
     final themeState = ref.watch(themeProvider);
     final isDarkMode = themeState.isDarkMode;
 
+    // Watch the trip progress state
+    final tripProgressState = ref.watch(_tripProgressProvider);
+
     return Scaffold(
       backgroundColor: isDarkMode
           ? AppColors.dmBackgroundColor
@@ -1127,21 +798,13 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
             ? AppColors.dmDefaultColor
             : AppColors.defaultColor,
         elevation: 2,
-        actions: [
-          // Debug button to check MQTT status
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: _debugMqttStatus,
-            tooltip: 'Debug MQTT Status',
-          ),
-        ],
       ),
-      body: _buildBody(isDarkMode),
+      body: _buildBody(isDarkMode, tripProgressState),
     );
   }
 
-  Widget _buildBody(bool isDarkMode) {
-    if (_isLoading) {
+  Widget _buildBody(bool isDarkMode, TripProgressState tripProgressState) {
+    if (_isLoading || tripProgressState is TripProgressLoading) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1159,7 +822,11 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
       );
     }
 
-    if (_hasError) {
+    if (_hasError || tripProgressState is TripProgressError) {
+      final errorMessage = tripProgressState is TripProgressError
+          ? tripProgressState.errorMessage
+          : (_errorMessage ?? tr('pickup.trip_progress.error'));
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -1173,7 +840,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                _errorMessage ?? tr('pickup.trip_progress.error'),
+                errorMessage,
                 textAlign: TextAlign.center,
                 style:
                     (isDarkMode
@@ -1191,9 +858,6 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                         _isLoading = true;
                         _hasError = false;
                       });
-
-                      // Run debug first
-                      await _debugMqttStatus();
 
                       // Try to initialize MQTT connection properly
                       print(
@@ -1218,8 +882,6 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                       final networkOk =
                           await MqttService.testNetworkConnectivity();
                       print('TripProgress: Network test result: $networkOk');
-
-                      await _debugMqttStatus();
 
                       // Show debug info in a dialog
                       if (mounted) {
@@ -1247,6 +909,23 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
         ),
       );
     }
+
+    // Get progress data from the state
+    final progressData = _getProgressData(tripProgressState);
+
+    // Safely extract progress (should already be double from provider)
+    double progress = 0.0;
+    final progressValue = progressData['progress'];
+    if (progressValue is num) {
+      progress = progressValue.toDouble();
+    }
+
+    final tripStartPoint = progressData['tripStartPoint'] as String?;
+    final tripEndPoint = progressData['tripEndPoint'] as String?;
+    final awaitingPhase1QR = progressData['awaitingPhase1QR'] as bool;
+    final awaitingPhase2QR = progressData['awaitingPhase2QR'] as bool;
+    final phase1QRScanned = progressData['phase1QRScanned'] as bool;
+    final phase2QRScanned = progressData['phase2QRScanned'] as bool;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -1329,7 +1008,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                                 .copyWith(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: _progress >= 0.5
+                                  color: progress >= 0.5
                                       ? (isDarkMode
                                             ? Colors.grey[600]
                                             : Colors.grey[500])
@@ -1350,7 +1029,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                                 .copyWith(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: _progress < 0.5
+                                  color: progress < 0.5
                                       ? (isDarkMode
                                             ? Colors.grey[600]
                                             : Colors.grey[500])
@@ -1404,14 +1083,14 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                                 width:
                                     (MediaQuery.of(context).size.width - 48) *
                                     0.5 *
-                                    (_progress <= 0.5 ? _progress * 2 : 1.0),
+                                    (progress <= 0.5 ? progress * 2 : 1.0),
                                 height: 20,
                                 decoration: BoxDecoration(
                                   borderRadius: const BorderRadius.only(
                                     topLeft: Radius.circular(8),
                                     bottomLeft: Radius.circular(8),
                                   ),
-                                  color: _progress > 0
+                                  color: progress > 0
                                       ? (isDarkMode
                                             ? AppColors.dmButtonColor
                                             : AppColors.buttonColor)
@@ -1421,7 +1100,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                             ),
 
                             // Phase 2 progress (delivery phase)
-                            if (_progress > 0.5)
+                            if (progress > 0.5)
                               Positioned(
                                 left:
                                     (MediaQuery.of(context).size.width - 48) *
@@ -1431,7 +1110,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                                   width:
                                       (MediaQuery.of(context).size.width - 48) *
                                       0.5 *
-                                      ((_progress - 0.5) * 2),
+                                      ((progress - 0.5) * 2),
                                   height: 20,
                                   decoration: BoxDecoration(
                                     borderRadius: const BorderRadius.only(
@@ -1466,7 +1145,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                       Positioned(
                         bottom: 0, // Robot sits on the bar
                         left:
-                            _progress *
+                            progress *
                             (MediaQuery.of(context).size.width - 48 - 80),
                         child: AnimatedBuilder(
                           animation: _robotAnimation,
@@ -1511,7 +1190,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                   children: [
                     Expanded(
                       child: Text(
-                        _tripStartPoint ??
+                        tripStartPoint ??
                             tr('pickup.trip_progress.start_point'),
                         textAlign: TextAlign.center,
                         style:
@@ -1528,7 +1207,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                     ),
                     Expanded(
                       child: Text(
-                        _tripEndPoint ?? tr('pickup.trip_progress.end_point'),
+                        tripEndPoint ?? tr('pickup.trip_progress.end_point'),
                         textAlign: TextAlign.center,
                         style:
                             (isDarkMode
@@ -1549,7 +1228,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
 
                 // Progress percentage
                 Text(
-                  '${(_progress * 100).toStringAsFixed(1)}%',
+                  '${(progress * 100).toStringAsFixed(1)}%',
                   style:
                       (isDarkMode
                               ? AppTypography.dmHeading(context)
@@ -1600,9 +1279,9 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                   child: Column(
                     children: [
                       Icon(
-                        _progress >= 1.0
+                        progress >= 1.0
                             ? Icons.check_circle
-                            : _progress >= 0.5
+                            : progress >= 0.5
                             ? Icons.local_shipping
                             : Icons.route,
                         color: isDarkMode
@@ -1612,11 +1291,11 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _progress >= 1.0
+                        progress >= 1.0
                             ? tr('pickup.trip_progress.completed')
-                            : _progress >= 0.5
+                            : progress >= 0.5
                             ? tr('pickup.trip_progress.delivery_phase')
-                            : _progress > 0
+                            : progress > 0
                             ? tr('pickup.trip_progress.pickup_phase')
                             : tr('pickup.trip_progress.waiting'),
                         textAlign: TextAlign.center,
@@ -1633,7 +1312,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                       ),
 
                       // Show phase-specific action buttons
-                      if (_awaitingPhase1QR && !_phase1QRScanned) ...[
+                      if (awaitingPhase1QR && !phase1QRScanned) ...[
                         // Phase 1: Sender needs to scan QR to open container at pickup
                         const SizedBox(height: 16),
                         SizedBox(
@@ -1668,7 +1347,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                                   color: Colors.grey[600],
                                 ),
                         ),
-                      ] else if (_awaitingPhase2QR && !_phase2QRScanned) ...[
+                      ] else if (awaitingPhase2QR && !phase2QRScanned) ...[
                         // Phase 2: Receiver needs to scan QR to receive order
                         const SizedBox(height: 16),
                         SizedBox(
@@ -1701,7 +1380,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                                   color: Colors.grey[600],
                                 ),
                         ),
-                      ] else if (_phase1QRScanned && _phase2QRScanned) ...[
+                      ] else if (phase1QRScanned && phase2QRScanned) ...[
                         // Both phases completed
                         const SizedBox(height: 16),
                         Container(
@@ -1749,5 +1428,38 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
         ],
       ),
     );
+  }
+
+  // Helper method to get progress data from the current state
+  Map<String, dynamic> _getProgressData(TripProgressState state) {
+    if (state is TripProgressLoaded) {
+      return {
+        'progress': state.progress,
+        'tripStartPoint': state.tripStartPoint,
+        'tripEndPoint': state.tripEndPoint,
+        'hasPickupPhase': state.hasPickupPhase,
+        'hasDeliveryPhase': state.hasDeliveryPhase,
+        'phase1QRScanned': state.phase1QRScanned,
+        'phase2QRScanned': state.phase2QRScanned,
+        'phase1NotificationSent': state.phase1NotificationSent,
+        'phase2NotificationSent': state.phase2NotificationSent,
+        'awaitingPhase1QR': state.awaitingPhase1QR,
+        'awaitingPhase2QR': state.awaitingPhase2QR,
+      };
+    }
+    // Return default values for non-loaded states
+    return {
+      'progress': 0.0,
+      'tripStartPoint': null,
+      'tripEndPoint': null,
+      'hasPickupPhase': false,
+      'hasDeliveryPhase': false,
+      'phase1QRScanned': false,
+      'phase2QRScanned': false,
+      'phase1NotificationSent': false,
+      'phase2NotificationSent': false,
+      'awaitingPhase1QR': false,
+      'awaitingPhase2QR': false,
+    };
   }
 }

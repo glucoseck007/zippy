@@ -416,9 +416,48 @@
       "no_orders": "No orders found"
     }
   },
+  "payment": {
+    "title": "Payment",
+    "creating_payment": "Creating payment...",
+    "order_summary": "Order Summary",
+    "order_id": "Order ID",
+    "amount": "Amount",
+    "description": "Description",
+    "verifying_payment": "Verifying payment...",
+    "please_wait": "Please wait while we confirm your payment",
+    "success_title": "Payment Successful!",
+    "success_message": "Your payment has been processed successfully. Your order is now confirmed.",
+    "failed_title": "Payment Failed",
+    "error_title": "Payment Error",
+    "continue": "Continue",
+    "try_again": "Try Again",
+    "retry": "Retry",
+    "cancel_payment_title": "Cancel Payment?",
+    "cancel_payment_message": "Are you sure you want to cancel this payment? Your payment will not be processed.",
+    "success_order_confirmed": "Payment successful! Your order has been confirmed.",
+    "failed_try_again": "Payment failed. Please try again.",
+    "management": {
+      "title": "Payment Management",
+      "unpaid_tab": "Unpaid",
+      "paid_tab": "Paid",
+      "loading_orders": "Loading orders...",
+      "error_loading": "Error Loading Orders",
+      "no_unpaid_orders": "No Unpaid Orders",
+      "no_unpaid_orders_subtitle": "All your orders are paid or you don't have any orders yet.",
+      "no_paid_orders": "No Paid Orders",
+      "delivery_to": "Delivery to: {location}",
+      "pay_now": "Pay Now",
+      "paid": "Paid",
+      "payment_completed": "Payment Completed"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "ok": "OK"
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "retry": "Retry",
+    "error_occurred": "An error occurred. Please try again."
   }
 }

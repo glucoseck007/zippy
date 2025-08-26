@@ -93,4 +93,42 @@ class TripService {
       );
     }
   }
+
+  /// Get trip details by trip code including start and end points
+  static Future<Map<String, dynamic>?> getTripDetails(String tripCode) async {
+    try {
+      print('TripService: Fetching trip details for tripCode: $tripCode');
+
+      final response = await ApiClient.get('/trip/details/$tripCode');
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+
+        if (jsonData['success'] == true && jsonData['data'] != null) {
+          final data = jsonData['data'];
+          final result = {
+            'startPoint': data['startPoint'] as String?,
+            'endPoint': data['endPoint'] as String?,
+          };
+
+          print(
+            'TripService: Trip details loaded - Start: ${result['startPoint']}, End: ${result['endPoint']}',
+          );
+          return result;
+        } else {
+          print('TripService: Invalid response format or no data');
+          return null;
+        }
+      } else {
+        print(
+          'TripService: Failed to fetch trip details, status: ${response.statusCode}',
+        );
+        throw Exception('Failed to fetch trip details');
+      }
+    } catch (e, stackTrace) {
+      print('TripService: Error fetching trip details: $e');
+      print('TripService: Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
 }

@@ -39,6 +39,7 @@ class OrderData {
   final String containerCode;
   final String productName;
   final String endpoint;
+  final double? price;
   final DateTime? createdAt;
 
   const OrderData({
@@ -49,6 +50,7 @@ class OrderData {
     required this.containerCode,
     required this.productName,
     required this.endpoint,
+    this.price,
     this.createdAt,
   });
 
@@ -61,6 +63,7 @@ class OrderData {
       containerCode: json['containerCode'] as String? ?? '',
       productName: json['productName'] as String? ?? '',
       endpoint: json['endpoint'] as String? ?? '',
+      price: json['price'] is num ? (json['price'] as num).toDouble() : null,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
@@ -77,13 +80,14 @@ class OrderData {
       'containerCode': containerCode,
       'productName': productName,
       'endpoint': endpoint,
+      if (price != null) 'price': price,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
   }
 
   @override
   String toString() {
-    return 'OrderData(orderId: $orderId, status: $status, estimatedDeliveryTime: $estimatedDeliveryTime, robotCode: $robotCode, containerCode: $containerCode, productName: $productName, endpoint: $endpoint, createdAt: $createdAt)';
+    return 'OrderData(orderId: $orderId, status: $status, estimatedDeliveryTime: $estimatedDeliveryTime, robotCode: $robotCode, containerCode: $containerCode, productName: $productName, endpoint: $endpoint, price: $price, createdAt: $createdAt)';
   }
 
   @override
@@ -97,6 +101,7 @@ class OrderData {
         other.containerCode == containerCode &&
         other.productName == productName &&
         other.endpoint == endpoint &&
+        other.price == price &&
         other.createdAt == createdAt;
   }
 
@@ -110,6 +115,7 @@ class OrderData {
       containerCode,
       productName,
       endpoint,
+      price,
       createdAt,
     );
   }
