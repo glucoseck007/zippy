@@ -17,13 +17,15 @@ class PaymentStatusResponse {
 
   factory PaymentStatusResponse.fromJson(Map<String, dynamic> json) {
     return PaymentStatusResponse(
-      paymentId: json['paymentId'] as String,
-      paymentStatus: json['paymentStatus'] as String,
-      orderStatus: json['orderStatus'] as String,
+      paymentId: json['paymentId'] as String? ?? '',
+      paymentStatus: json['paymentStatus'] as String? ?? 'UNKNOWN',
+      orderStatus: json['orderStatus'] as String? ?? 'UNKNOWN',
       amount: json['amount'] is num ? (json['amount'] as num).toDouble() : 0.0,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
       paidAt: json['paidAt'] != null
-          ? DateTime.parse(json['paidAt'] as String)
+          ? DateTime.tryParse(json['paidAt'] as String)
           : null,
     );
   }

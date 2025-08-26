@@ -28,18 +28,6 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
     }
   }
 
-  /// Set webview loading state
-  void setWebViewLoading(bool isLoading) {
-    if (state is PaymentCreated) {
-      final currentState = state as PaymentCreated;
-      if (isLoading) {
-        state = PaymentWebViewLoading(paymentData: currentState.paymentData);
-      } else {
-        state = PaymentCreated(paymentData: currentState.paymentData);
-      }
-    }
-  }
-
   /// Handle payment result from deep link
   Future<void> handlePaymentResult(String orderId, String status) async {
     print(

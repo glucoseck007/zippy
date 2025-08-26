@@ -19,12 +19,6 @@ class PaymentCreated extends PaymentState {
   const PaymentCreated({required this.paymentData});
 }
 
-class PaymentWebViewLoading extends PaymentState {
-  final PaymentCreateResponse paymentData;
-
-  const PaymentWebViewLoading({required this.paymentData});
-}
-
 class PaymentProcessing extends PaymentState {
   final String orderId;
 

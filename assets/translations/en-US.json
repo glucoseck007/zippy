@@ -436,6 +436,10 @@
     "cancel_payment_message": "Are you sure you want to cancel this payment? Your payment will not be processed.",
     "success_order_confirmed": "Payment successful! Your order has been confirmed.",
     "failed_try_again": "Payment failed. Please try again.",
+    "network_error_title": "Network Error",
+    "network_error_message": "Unable to load the payment page. Please check your internet connection.",
+    "network_error_suggestions": "• Check your internet connection\n• Try connecting to a different network\n• Contact support if the problem persists",
+    "technical_details": "Technical Details:",
     "management": {
       "title": "Payment Management",
       "unpaid_tab": "Unpaid",

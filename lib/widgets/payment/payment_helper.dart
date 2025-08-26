@@ -7,6 +7,7 @@ class PaymentHelper {
   static Future<bool?> launchPayment({
     required BuildContext context,
     required String orderId,
+    String? orderCode,
     double? amount,
     String? orderDescription,
   }) async {
@@ -14,6 +15,7 @@ class PaymentHelper {
       MaterialPageRoute(
         builder: (context) => PaymentScreen(
           orderId: orderId,
+          orderCode: orderCode,
           amount: amount,
           orderDescription: orderDescription,
         ),

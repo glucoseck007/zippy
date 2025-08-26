@@ -29,7 +29,7 @@ import UIKit
   }
   
   override func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-    if url.scheme == "zippy" {
+    if url.scheme == "zippyapp" {
       methodChannel?.invokeMethod("onDeepLink", arguments: url.absoluteString)
       return true
     }

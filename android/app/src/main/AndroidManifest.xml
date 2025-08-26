@@ -31,7 +31,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="zippy" android:host="payment" />
+                <data android:scheme="zippyapp" android:host="payment" />
             </intent-filter>
         </activity>
         

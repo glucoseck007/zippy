@@ -15,10 +15,10 @@ class PaymentCreateResponse {
 
   factory PaymentCreateResponse.fromJson(Map<String, dynamic> json) {
     return PaymentCreateResponse(
-      paymentId: json['paymentId'] as String,
-      paymentLinkId: json['paymentLinkId'] as String,
-      checkoutUrl: json['checkoutUrl'] as String,
-      orderCode: json['orderCode'] as String,
+      paymentId: json['paymentId'] as String? ?? '',
+      paymentLinkId: json['paymentLinkId'] as String? ?? '',
+      checkoutUrl: json['checkoutUrl'] as String? ?? '',
+      orderCode: json['orderCode'] as String? ?? '',
       amount: json['amount'] is num ? (json['amount'] as num).toDouble() : 0.0,
     );
   }

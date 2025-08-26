@@ -1,31 +1,18 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../models/response/payment/payment_create_response.dart';
 import '../../models/response/payment/payment_status_response.dart';
-import '../../utils/secure_storage.dart';
+import '../api_client.dart';
 
 class PaymentService {
-  static final String _baseUrl =
-      dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080';
-
   /// Create a payment for an order
   static Future<PaymentCreateResponse?> createPayment(String orderId) async {
     try {
-      final token = await SecureStorage.getAccessToken();
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
-
       print('PaymentService: Creating payment for order: $orderId');
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/payment/mobile/create/$orderId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      final response = await ApiClient.post(
+        '/payment/mobile/create/$orderId',
+        {},
       );
 
       print(
@@ -35,7 +22,52 @@ class PaymentService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonData = jsonDecode(response.body);
-        return PaymentCreateResponse.fromJson(jsonData);
+        print('PaymentService: Parsed JSON data: $jsonData');
+
+        // Check if response has the expected structure
+        if (jsonData is Map<String, dynamic>) {
+          try {
+            // Check if this is a wrapped API response
+            if (jsonData.containsKey('success') &&
+                jsonData.containsKey('data')) {
+              final apiResponse = jsonData;
+              if (apiResponse['success'] == true &&
+                  apiResponse['data'] != null) {
+                final paymentData = apiResponse['data'] as Map<String, dynamic>;
+                print(
+                  'PaymentService: Payment data from API response: $paymentData',
+                );
+                final paymentResponse = PaymentCreateResponse.fromJson(
+                  paymentData,
+                );
+                print(
+                  'PaymentService: Successfully created PaymentCreateResponse: $paymentResponse',
+                );
+                return paymentResponse;
+              } else {
+                throw Exception(
+                  'API request failed: ${apiResponse['message'] ?? 'Unknown error'}',
+                );
+              }
+            } else {
+              // Direct payment response (fallback)
+              final paymentResponse = PaymentCreateResponse.fromJson(jsonData);
+              print(
+                'PaymentService: Successfully created PaymentCreateResponse: $paymentResponse',
+              );
+              return paymentResponse;
+            }
+          } catch (e) {
+            print('PaymentService: Error parsing PaymentCreateResponse: $e');
+            print('PaymentService: JSON data that caused the error: $jsonData');
+            throw Exception('Error parsing payment response: $e');
+          }
+        } else {
+          print(
+            'PaymentService: Response is not a Map<String, dynamic>: $jsonData',
+          );
+          throw Exception('Invalid response format from server');
+        }
       } else {
         print(
           'PaymentService: Failed to create payment - Status: ${response.statusCode}',
@@ -51,20 +83,9 @@ class PaymentService {
   /// Check payment status for an order
   static Future<PaymentStatusResponse?> getPaymentStatus(String orderId) async {
     try {
-      final token = await SecureStorage.getAccessToken();
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
-
       print('PaymentService: Checking payment status for order: $orderId');
 
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/payment/mobile/status/$orderId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await ApiClient.get('/payment/mobile/status/$orderId');
 
       print(
         'PaymentService: Payment status response status: ${response.statusCode}',
@@ -73,7 +94,52 @@ class PaymentService {
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        return PaymentStatusResponse.fromJson(jsonData);
+        print('PaymentService: Payment status parsed JSON data: $jsonData');
+
+        // Check if response has the expected structure
+        if (jsonData is Map<String, dynamic>) {
+          try {
+            // Check if this is a wrapped API response
+            if (jsonData.containsKey('success') &&
+                jsonData.containsKey('data')) {
+              final apiResponse = jsonData;
+              if (apiResponse['success'] == true &&
+                  apiResponse['data'] != null) {
+                final statusData = apiResponse['data'] as Map<String, dynamic>;
+                print(
+                  'PaymentService: Payment status data from API response: $statusData',
+                );
+                final statusResponse = PaymentStatusResponse.fromJson(
+                  statusData,
+                );
+                print(
+                  'PaymentService: Successfully created PaymentStatusResponse: $statusResponse',
+                );
+                return statusResponse;
+              } else {
+                throw Exception(
+                  'API request failed: ${apiResponse['message'] ?? 'Unknown error'}',
+                );
+              }
+            } else {
+              // Direct status response (fallback)
+              final statusResponse = PaymentStatusResponse.fromJson(jsonData);
+              print(
+                'PaymentService: Successfully created PaymentStatusResponse: $statusResponse',
+              );
+              return statusResponse;
+            }
+          } catch (e) {
+            print('PaymentService: Error parsing PaymentStatusResponse: $e');
+            print('PaymentService: JSON data that caused the error: $jsonData');
+            throw Exception('Error parsing payment status response: $e');
+          }
+        } else {
+          print(
+            'PaymentService: Response is not a Map<String, dynamic>: $jsonData',
+          );
+          throw Exception('Invalid response format from server');
+        }
       } else {
         print(
           'PaymentService: Failed to get payment status - Status: ${response.statusCode}',

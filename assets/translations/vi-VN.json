@@ -439,6 +439,10 @@
     "cancel_payment_message": "Bạn có chắc chắn muốn hủy thanh toán này? Thanh toán của bạn sẽ không được xử lý.",
     "success_order_confirmed": "Thanh toán thành công! Đơn hàng của bạn đã được xác nhận.",
     "failed_try_again": "Thanh toán thất bại. Vui lòng thử lại.",
+    "network_error_title": "Lỗi kết nối",
+    "network_error_message": "Không thể tải trang thanh toán. Vui lòng kiểm tra kết nối internet.",
+    "network_error_suggestions": "• Kiểm tra kết nối internet\n• Thử kết nối mạng khác\n• Liên hệ hỗ trợ nếu vấn đề vẫn tiếp tục",
+    "technical_details": "Chi tiết kỹ thuật:",
     "management": {
       "title": "Quản lý thanh toán",
       "unpaid_tab": "Chưa thanh toán",

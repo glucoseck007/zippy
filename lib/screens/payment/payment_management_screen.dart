@@ -94,6 +94,7 @@ class _PaymentManagementScreenState
     final result = await PaymentHelper.launchPayment(
       context: context,
       orderId: order.orderId,
+      orderCode: order.orderCode,
       amount: defaultAmount,
       orderDescription: order.productName,
     );

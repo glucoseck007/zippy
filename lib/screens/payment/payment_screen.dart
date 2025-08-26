@@ -2,22 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'dart:async';
 
 import '../../design/app_colors.dart';
 import '../../design/app_typography.dart';
 import '../../providers/core/theme_provider.dart';
 import '../../providers/payment/payment_provider.dart';
 import '../../services/payment/payment_service.dart';
+import '../../services/deep_link/deep_link_service.dart';
 import '../../state/payment/payment_state.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
   final String orderId;
+  final String? orderCode;
   final double? amount;
   final String? orderDescription;
 
   const PaymentScreen({
     super.key,
     required this.orderId,
+    this.orderCode,
     this.amount,
     this.orderDescription,
   });
@@ -29,15 +33,44 @@ class PaymentScreen extends ConsumerStatefulWidget {
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   WebViewController? _webViewController;
   bool _isWebViewLoading = true;
+  StreamSubscription<String>? _linkSubscription;
 
   @override
   void initState() {
     super.initState();
 
+    // Listen for deep link redirects from PayOS
+    _linkSubscription = DeepLinkService.linkStream?.listen(_handleDeepLink);
+
     // Create payment when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(paymentProvider.notifier).createPayment(widget.orderId);
     });
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    _webViewController = null;
+    super.dispose();
+  }
+
+  void _handleDeepLink(String link) {
+    print('PaymentScreen: Received deep link: $link');
+
+    final paymentResult = DeepLinkService.parsePaymentResult(link);
+    if (paymentResult != null) {
+      final status = paymentResult['status']!;
+      final orderId = paymentResult['orderId']!;
+
+      // Only handle if it's for the current order
+      if (orderId == widget.orderId) {
+        print(
+          'PaymentScreen: Handling payment result for order $orderId with status $status',
+        );
+        ref.read(paymentProvider.notifier).handlePaymentResult(orderId, status);
+      }
+    }
   }
 
   @override
@@ -83,10 +116,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       case PaymentCreated:
         final state = paymentState as PaymentCreated;
         return _buildPaymentCreatedView(isDarkMode, state);
-
-      case PaymentWebViewLoading:
-        final state = paymentState as PaymentWebViewLoading;
-        return _buildWebViewLoadingView(isDarkMode, state);
 
       case PaymentProcessing:
         final state = paymentState as PaymentProcessing;
@@ -165,7 +194,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     : AppTypography.heading(context).copyWith(fontSize: 18),
               ),
               const SizedBox(height: 12),
-              _buildInfoRow(isDarkMode, tr('payment.order_id'), widget.orderId),
+              _buildInfoRow(
+                isDarkMode,
+                tr('payment.order_id'),
+                widget.orderCode ?? widget.orderId,
+              ),
               _buildInfoRow(
                 isDarkMode,
                 tr('payment.amount'),
@@ -181,63 +214,16 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           ),
         ),
 
-        // WebView
-        Expanded(child: _buildWebView(state.paymentData.checkoutUrl)),
-      ],
-    );
-  }
-
-  Widget _buildWebViewLoadingView(
-    bool isDarkMode,
-    PaymentWebViewLoading state,
-  ) {
-    return Column(
-      children: [
-        // Payment info (same as above)
-        Container(
-          width: double.infinity,
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDarkMode ? AppColors.dmCardColor : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                tr('payment.order_summary'),
-                style: isDarkMode
-                    ? AppTypography.dmHeading(context).copyWith(fontSize: 18)
-                    : AppTypography.heading(context).copyWith(fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-              _buildInfoRow(isDarkMode, tr('payment.order_id'), widget.orderId),
-              _buildInfoRow(
-                isDarkMode,
-                tr('payment.amount'),
-                PaymentService.formatAmount(state.paymentData.amount),
-              ),
-            ],
-          ),
-        ),
-
-        // Loading overlay on WebView
+        // WebView with loading overlay
         Expanded(
           child: Stack(
             children: [
               _buildWebView(state.paymentData.checkoutUrl),
-              Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(child: CircularProgressIndicator()),
-              ),
+              if (_isWebViewLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
             ],
           ),
         ),
@@ -251,6 +237,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   WebViewController _getWebViewController(String url) {
     if (_webViewController == null) {
+      setState(() {
+        _isWebViewLoading = true;
+      });
+
       _webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(const Color(0x00000000))
@@ -262,7 +252,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 setState(() {
                   _isWebViewLoading = false;
                 });
-                ref.read(paymentProvider.notifier).setWebViewLoading(false);
               }
             },
             onPageStarted: (String url) {
@@ -278,6 +267,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             },
             onWebResourceError: (WebResourceError error) {
               print('PaymentScreen: WebView error: ${error.description}');
+              print('PaymentScreen: Error type: ${error.errorType}');
+
+              // Show user-friendly error for network issues
+              Future.microtask(() {
+                if (mounted) {
+                  _showNetworkErrorDialog(error.description);
+                }
+              });
             },
             onNavigationRequest: (NavigationRequest request) {
               print('PaymentScreen: Navigation request: ${request.url}');
@@ -293,9 +290,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           ),
         )
         ..loadRequest(Uri.parse(url));
-
-      // Set initial loading state
-      ref.read(paymentProvider.notifier).setWebViewLoading(true);
     }
 
     return _webViewController!;
@@ -572,9 +566,59 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _webViewController = null;
-    super.dispose();
+  void _showNetworkErrorDialog(String errorDescription) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.wifi_off, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(tr('payment.network_error_title')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('payment.network_error_message')),
+            const SizedBox(height: 8),
+            Text(
+              tr('payment.network_error_suggestions'),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            if (errorDescription.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                tr('payment.technical_details'),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              Text(
+                errorDescription,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(false); // Return to previous screen
+            },
+            child: Text(tr('common.cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Retry by recreating the payment
+              ref.read(paymentProvider.notifier).retryPayment(widget.orderId);
+            },
+            child: Text(tr('common.retry')),
+          ),
+        ],
+      ),
+    );
   }
 }
