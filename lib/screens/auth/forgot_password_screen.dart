@@ -327,12 +327,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                 child: Text(
                                   tr('auth.reset_password_info'),
                                   style: isDarkMode
-                                      ? AppTypography.dmBodyText(context).copyWith(
-                                          fontSize: 12,
-                                        )
-                                      : AppTypography.bodyText(context).copyWith(
-                                          fontSize: 12,
-                                        ),
+                                      ? AppTypography.dmBodyText(
+                                          context,
+                                        ).copyWith(fontSize: 12)
+                                      : AppTypography.bodyText(
+                                          context,
+                                        ).copyWith(fontSize: 12),
                                 ),
                               ),
                             ],
