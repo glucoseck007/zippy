@@ -70,18 +70,24 @@ flutter_native_splash:
     icon_background_color_dark: "#000000"
   web: false
 
-flutter_icons:
+flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/logo.png" # Make sure logo.png is 512x512 with extra padding
   min_sdk_android: 21
   web:
     generate: true
     image_path: "assets/images/logo.png"
+    background_color: "#ffffff"
+    theme_color: "#2196F3"
   windows:
     generate: true
     image_path: "assets/images/logo.png"
     icon_size: 48
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/logo.png"
+  remove_alpha_ios: true
+  # The logo should have extra white space/padding in the PNG itself to reduce its visible size
 
 flutter:
 
