@@ -291,11 +291,11 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
 
     // Check if this is the specific trip progress message we're interested in
     final topic = data['topic'] as String?;
+    final tripCode = data['trip_id'] as String?;
 
     // More flexible topic matching - use contains instead of exact match
     if (topic == null ||
-        (!topic.contains(widget.robotCode) ||
-            !topic.contains(widget.tripCode))) {
+        (!topic.contains(widget.robotCode) || !(tripCode == widget.tripCode))) {
       print(
         'TripProgress: Message not for our trip. Topic: $topic, Expected to contain: ${widget.robotCode} and ${widget.tripCode}',
       );
