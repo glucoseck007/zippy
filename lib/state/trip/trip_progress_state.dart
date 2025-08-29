@@ -22,6 +22,7 @@ class TripProgressLoaded extends TripProgressState {
   final bool phase2NotificationSent;
   final bool awaitingPhase1QR;
   final bool awaitingPhase2QR;
+  final int? status;
 
   const TripProgressLoaded({
     required this.progress,
@@ -35,6 +36,7 @@ class TripProgressLoaded extends TripProgressState {
     required this.phase2NotificationSent,
     required this.awaitingPhase1QR,
     required this.awaitingPhase2QR,
+    required this.status,
   });
 
   TripProgressLoaded copyWith({
@@ -49,6 +51,7 @@ class TripProgressLoaded extends TripProgressState {
     bool? phase2NotificationSent,
     bool? awaitingPhase1QR,
     bool? awaitingPhase2QR,
+    int? status,
   }) {
     return TripProgressLoaded(
       progress: progress ?? this.progress,
@@ -64,6 +67,7 @@ class TripProgressLoaded extends TripProgressState {
           phase2NotificationSent ?? this.phase2NotificationSent,
       awaitingPhase1QR: awaitingPhase1QR ?? this.awaitingPhase1QR,
       awaitingPhase2QR: awaitingPhase2QR ?? this.awaitingPhase2QR,
+      status: status ?? this.status,
     );
   }
 }

@@ -926,6 +926,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
     final awaitingPhase2QR = progressData['awaitingPhase2QR'] as bool;
     final phase1QRScanned = progressData['phase1QRScanned'] as bool;
     final phase2QRScanned = progressData['phase2QRScanned'] as bool;
+    final status = progressData['status'] as int?;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -1185,13 +1186,12 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
 
                 const SizedBox(height: 16),
 
-                // Start and end point labels below progress bar
+                // Start and end point labels below progress bar (status-based)
                 Row(
                   children: [
                     Expanded(
                       child: Text(
-                        tripStartPoint ??
-                            tr('pickup.trip_progress.start_point'),
+                        _getLeftProgressLabel(status, tripStartPoint),
                         textAlign: TextAlign.center,
                         style:
                             (isDarkMode
@@ -1207,7 +1207,11 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                     ),
                     Expanded(
                       child: Text(
-                        tripEndPoint ?? tr('pickup.trip_progress.end_point'),
+                        _getRightProgressLabel(
+                          status,
+                          tripStartPoint,
+                          tripEndPoint,
+                        ),
                         textAlign: TextAlign.center,
                         style:
                             (isDarkMode
@@ -1445,6 +1449,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
         'phase2NotificationSent': state.phase2NotificationSent,
         'awaitingPhase1QR': state.awaitingPhase1QR,
         'awaitingPhase2QR': state.awaitingPhase2QR,
+        'status': state.status,
       };
     }
     // Return default values for non-loaded states
@@ -1460,6 +1465,39 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
       'phase2NotificationSent': false,
       'awaitingPhase1QR': false,
       'awaitingPhase2QR': false,
+      'status': null,
     };
+  }
+
+  /// Get the left side label for progress bar based on status
+  String _getLeftProgressLabel(int? status, String? tripStartPoint) {
+    if (status == 0 || status == 1) {
+      // Phase 1 (status=0 or 1): left side should be empty
+      return '';
+    } else if (status == 2) {
+      // Phase 2 (status=2): left side shows start point
+      return tripStartPoint ?? tr('pickup.trip_progress.start_point');
+    } else {
+      // Default case: show start point
+      return tripStartPoint ?? tr('pickup.trip_progress.start_point');
+    }
+  }
+
+  /// Get the right side label for progress bar based on status
+  String _getRightProgressLabel(
+    int? status,
+    String? tripStartPoint,
+    String? tripEndPoint,
+  ) {
+    if (status == 0 || status == 1) {
+      // Phase 1 (status=0 or 1): right side shows start point
+      return tripStartPoint ?? tr('pickup.trip_progress.start_point');
+    } else if (status == 2) {
+      // Phase 2 (status=2): right side shows end point
+      return tripEndPoint ?? tr('pickup.trip_progress.end_point');
+    } else {
+      // Default case: show end point
+      return tripEndPoint ?? tr('pickup.trip_progress.end_point');
+    }
   }
 }

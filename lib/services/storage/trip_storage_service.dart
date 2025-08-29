@@ -184,6 +184,7 @@ class TripStorageService {
     required bool phase2NotificationSent,
     required bool awaitingPhase1QR,
     required bool awaitingPhase2QR,
+    int? status,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -199,6 +200,7 @@ class TripStorageService {
         'phase2NotificationSent': phase2NotificationSent,
         'awaitingPhase1QR': awaitingPhase1QR,
         'awaitingPhase2QR': awaitingPhase2QR,
+        'status': status,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
         'tripCode': tripCode,
         'orderCode': orderCode,
@@ -207,7 +209,7 @@ class TripStorageService {
 
       await prefs.setString(cacheKey, jsonEncode(data));
       print(
-        'TripStorageService: Saved progress to cache - Progress: ${(progress * 100).toStringAsFixed(1)}%',
+        'TripStorageService: Saved progress to cache - Progress: ${(progress * 100).toStringAsFixed(1)}%, Status: $status',
       );
     } catch (e) {
       print('TripStorageService: Error saving progress to cache: $e');

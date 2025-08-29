@@ -71,6 +71,7 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
 
       final payloadStartPoint = data['start_point'] as String?;
       final payloadEndPoint = data['end_point'] as String?;
+      final status = data['status'] as int?;
 
       if (progress == null) {
         print(
@@ -100,13 +101,14 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
 
       // Simple progress update if we don't have trip details
       if (startPoint == null || endPoint == null) {
-        _updateSimpleProgress(progress);
+        _updateSimpleProgress(progress, status);
         return;
       }
 
       // Complex phase-based progress calculation
       _updatePhaseBasedProgress(
         progress: progress,
+        status: status,
         payloadStartPoint: payloadStartPoint,
         payloadEndPoint: payloadEndPoint,
         tripStartPoint: currentState.tripStartPoint!,
@@ -119,16 +121,16 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
   }
 
   /// Update simple progress without phase calculation
-  void _updateSimpleProgress(double progress) {
+  void _updateSimpleProgress(double progress, int? status) {
     final currentState = state as TripProgressLoaded;
 
     // Check if progress is already a percentage (>1) or a decimal fraction
     final normalizedProgress = progress > 1 ? progress / 100.0 : progress;
 
-    state = currentState.copyWith(progress: normalizedProgress);
+    state = currentState.copyWith(progress: normalizedProgress, status: status);
 
     print(
-      'TripProgressProvider: Simple progress update: ${(normalizedProgress * 100).toStringAsFixed(1)}%',
+      'TripProgressProvider: Simple progress update: ${(normalizedProgress * 100).toStringAsFixed(1)}%, status: $status',
     );
     _saveTripProgress();
   }
@@ -136,6 +138,7 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
   /// Update progress with phase-based calculation
   void _updatePhaseBasedProgress({
     required double progress,
+    required int? status,
     required String? payloadStartPoint,
     required String? payloadEndPoint,
     required String tripStartPoint,
@@ -144,15 +147,23 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
   }) {
     TripProgressLoaded newState = currentState;
 
-    if (payloadEndPoint == tripStartPoint) {
-      // Phase 1: Robot going to pickup location
+    // Use status-based phase logic
+    // Status 0 = Prepare/Phase 1 (going to start point)
+    // Status 1 = Load/Phase 1 (at start point, loading)
+    // Status 2 = On Going/Phase 2 (going to end point)
+
+    if (status == 0 || status == 1) {
+      // Phase 1: Robot going to pickup location or loading at pickup
       final normalizedProgress = progress > 1 ? progress / 100.0 : progress;
       newState = currentState.copyWith(
         progress: normalizedProgress * 0.5, // Map to first half of progress bar
         hasPickupPhase: true,
+        status: status,
       );
 
-      print('TripProgressProvider: Phase 1 - Robot going to pickup location');
+      print(
+        'TripProgressProvider: Phase 1 (status=$status) - Robot ${status == 0 ? "going to" : "loading at"} start point',
+      );
       print(
         'TripProgressProvider: Progress mapped to first half: ${(newState.progress * 100).toStringAsFixed(1)}%',
       );
@@ -167,43 +178,32 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
         // Trigger phase 1 notification callback
         _onPhase1Complete?.call();
         print(
-          'TripProgressProvider: Phase 1 complete - Robot reached pickup location',
+          'TripProgressProvider: Phase 1 complete - Robot reached start point',
         );
       }
-    } else if (payloadStartPoint == tripStartPoint) {
-      // Handle instant phase 1 completion
-      if (!currentState.hasDeliveryPhase &&
-          !currentState.phase1NotificationSent) {
-        newState = newState.copyWith(
-          awaitingPhase1QR: true,
-          phase1NotificationSent: true,
-        );
-        _onPhase1Complete?.call();
-        print(
-          'TripProgressProvider: Phase 1 completed instantly - Robot at pickup',
-        );
-      }
-
+    } else if (status == 2) {
       // Phase 2: Robot going from pickup to delivery location
       final normalizedProgress = progress > 1 ? progress / 100.0 : progress;
 
       if (currentState.hasPickupPhase || currentState.phase1QRScanned) {
-        // Second half of progress bar
+        // Second half of progress bar (after pickup phase)
         newState = newState.copyWith(
           progress: 0.5 + (normalizedProgress * 0.5),
           hasDeliveryPhase: true,
+          status: status,
         );
         print(
-          'TripProgressProvider: Phase 2 - Robot going from pickup to delivery (after pickup phase)',
+          'TripProgressProvider: Phase 2 (status=2) - Robot going from start to end point (after pickup phase)',
         );
       } else {
-        // Direct delivery without pickup phase
+        // Direct delivery without pickup phase (show full progress)
         newState = newState.copyWith(
           progress: normalizedProgress,
           hasDeliveryPhase: true,
+          status: status,
         );
         print(
-          'TripProgressProvider: Phase 2 - Direct delivery (no pickup phase seen)',
+          'TripProgressProvider: Phase 2 (status=2) - Direct delivery (no pickup phase seen)',
         );
       }
 
@@ -217,17 +217,22 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
         // Trigger phase 2 notification callback
         _onPhase2Complete?.call();
         print(
-          'TripProgressProvider: Phase 2 complete - Robot reached delivery location',
+          'TripProgressProvider: Phase 2 complete - Robot reached end point',
         );
       }
     } else {
-      print('TripProgressProvider: No phase match found - ignoring message');
-      return;
+      // Update progress and status for other phases without specific handling
+      final normalizedProgress = progress > 1 ? progress / 100.0 : progress;
+      newState = currentState.copyWith(
+        progress: normalizedProgress,
+        status: status,
+      );
+      print('TripProgressProvider: Status $status - General progress update');
     }
 
     state = newState;
     print(
-      'TripProgressProvider: Final progress: ${(newState.progress * 100).toStringAsFixed(1)}%',
+      'TripProgressProvider: Final progress: ${(newState.progress * 100).toStringAsFixed(1)}%, status: ${newState.status}',
     );
 
     _saveTripProgress();
@@ -281,14 +286,40 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
         final progressValue = tripData['progress'];
         if (progressValue is num) {
           progress = progressValue.toDouble();
+          // Convert to decimal if it's a percentage (>1)
+          if (progress > 1) {
+            progress = progress / 100.0;
+          }
         }
+
+        // Extract status for phase determination
+        final status = tripData['status'] as int?;
+
+        // Determine phases based on status if phase fields are missing
+        bool hasPickupPhase = false;
+        bool hasDeliveryPhase = false;
+
+        if (status == 0) {
+          hasPickupPhase = true; // Status 0 (Prepare) means going to pickup
+        } else if (status == 1) {
+          hasPickupPhase =
+              true; // Status 1 (Load) means at pickup location, loading
+        } else if (status == 2) {
+          hasDeliveryPhase =
+              true; // Status 2 (On Going) means going to delivery
+        }
+
+        print(
+          'TripProgressProvider: Loading cached data - Status: $status, Progress: $progress, HasPickupPhase: $hasPickupPhase, HasDeliveryPhase: $hasDeliveryPhase',
+        );
 
         state = TripProgressLoaded(
           progress: progress,
           tripStartPoint: tripData['start_point'] as String?,
           tripEndPoint: tripData['end_point'] as String?,
-          hasPickupPhase: tripData['hasPickupPhase'] as bool? ?? false,
-          hasDeliveryPhase: tripData['hasDeliveryPhase'] as bool? ?? false,
+          hasPickupPhase: tripData['hasPickupPhase'] as bool? ?? hasPickupPhase,
+          hasDeliveryPhase:
+              tripData['hasDeliveryPhase'] as bool? ?? hasDeliveryPhase,
           phase1QRScanned: tripData['phase1QRScanned'] as bool? ?? false,
           phase2QRScanned: tripData['phase2QRScanned'] as bool? ?? false,
           phase1NotificationSent:
@@ -297,6 +328,7 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
               tripData['phase2NotificationSent'] as bool? ?? false,
           awaitingPhase1QR: tripData['awaitingPhase1QR'] as bool? ?? false,
           awaitingPhase2QR: tripData['awaitingPhase2QR'] as bool? ?? false,
+          status: status,
         );
 
         // Update background monitoring service state
@@ -320,6 +352,7 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
           phase2NotificationSent: false,
           awaitingPhase1QR: false,
           awaitingPhase2QR: false,
+          status: null,
         );
         print(
           'TripProgressProvider: No cached data found, initialized with empty state',
@@ -349,6 +382,7 @@ class TripProgressNotifier extends StateNotifier<TripProgressState> {
           phase2NotificationSent: currentState.phase2NotificationSent,
           awaitingPhase1QR: currentState.awaitingPhase1QR,
           awaitingPhase2QR: currentState.awaitingPhase2QR,
+          status: currentState.status,
         );
 
         print(

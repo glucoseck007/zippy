@@ -90,30 +90,12 @@ class RobotNotifier extends StateNotifier<RobotState> {
             'RobotProvider: Invalid container topic format - missing container ID',
           );
         }
-      } else if (topic.contains('/trip/')) {
-        // Topic: robot/+/trip/+
-        print('RobotProvider: Message type: trip_progress');
-
-        // Extract trip code from topic (should be at index 3)
-        if (parts.length >= 4) {
-          final tripCode = parts[3];
-          processedData['tripCode'] = tripCode;
-          print('RobotProvider: Trip code: $tripCode');
-
-          final progress = data['progress'] as num?;
-          if (progress != null) {
-            updateRobotTripProgress(
-              robotId: robotId,
-              tripCode: tripCode,
-              progress: progress is double ? progress : progress.toDouble(),
-              payload: processedData,
-            );
-          } else {
-            print('RobotProvider: Missing progress field for trip update');
-          }
-        } else {
-          print('RobotProvider: Invalid trip topic format - missing trip code');
-        }
+      } else if (topic.contains('/trip')) {
+        // Topic: robot/+/trip - Let trip_progress_provider handle this
+        print(
+          'RobotProvider: Message type: trip_progress - forwarding to trip_progress_provider',
+        );
+        // Don't handle trip progress here, let trip_progress_provider handle it
       } else {
         print('RobotProvider: Unknown topic pattern: $topic');
         return;
@@ -786,58 +768,6 @@ class RobotNotifier extends StateNotifier<RobotState> {
       _handleRobotLocationUpdate(locationData);
     } catch (e) {
       print('RobotProvider: Error in updateRobotLocation: $e');
-    }
-  }
-
-  /// Update robot trip progress from MQTT payload handler
-  void updateRobotTripProgress({
-    required String robotId,
-    required String tripCode,
-    required double progress,
-    required Map<String, dynamic> payload,
-  }) {
-    try {
-      // Get current state
-      final currentState = state;
-      if (!currentState.isLoaded) return;
-
-      // Find the robot
-      final allRobots = [
-        ...currentState.freeRobots,
-        ...currentState.busyRobots,
-      ];
-      final robotIndex = allRobots.indexWhere((r) => r.robotCode == robotId);
-
-      if (robotIndex >= 0) {
-        final robot = allRobots[robotIndex];
-
-        // Update robot with trip info (using available fields)
-        final progressPercentage = (progress * 100).toInt();
-        final updatedRobot = robot.copyWith(
-          status: 'busy', // Mark as busy while on trip
-          name: '${robot.name ?? robot.displayName} (Trip: $tripCode)',
-          currentLocation: 'On delivery - ${progressPercentage}% complete',
-          estimatedArrival: 'Progress: ${progressPercentage}%',
-        );
-
-        // Update busy robots list
-        state = state.copyWith(
-          busyRobots: [
-            ...state.busyRobots.where((r) => r.robotCode != robotId),
-            updatedRobot,
-          ],
-          // Remove from free robots if it was there
-          freeRobots: [
-            ...state.freeRobots.where((r) => r.robotCode != robotId),
-          ],
-        );
-
-        print(
-          'RobotProvider: Updated trip progress for robot $robotId: $progress',
-        );
-      }
-    } catch (e) {
-      print('RobotProvider: Error in updateRobotTripProgress: $e');
     }
   }
 }

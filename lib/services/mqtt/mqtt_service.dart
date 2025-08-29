@@ -108,25 +108,35 @@ class MqttService {
     }
 
     // Subscribe to robot status updates (matching the actual topic pattern)
-    const robotStatusTopic = 'robot/+/status';
-    const containerStatusTopic = 'robot/+/container/+/status';
     const robotLocationTopic = 'robot/+/location';
     const robotBatteryTopic = 'robot/+/battery';
-    const tripTopic = 'robot/+/trip/+';
+    const robotStatusTopic = 'robot/+/status';
+    const containerStatusTopic = 'robot/+/container';
+    const tripTopic = 'robot/+/trip';
+    const qrCodeTopic = 'robot/+/qr-code';
+    const forcMoveTopic = 'robot/+/force_move';
+    const warningTopic = 'robot/+/warning';
 
     final topics = [
-      robotStatusTopic,
-      containerStatusTopic,
       robotLocationTopic,
       robotBatteryTopic,
+      robotStatusTopic,
+      containerStatusTopic,
       tripTopic,
+      qrCodeTopic,
+      forcMoveTopic,
+      warningTopic,
     ];
 
     print('MqttService: Subscribing to topics:');
-    print('  - Robot status: $robotStatusTopic');
-    print('  - Container status: $containerStatusTopic');
     print('  - Robot location: $robotLocationTopic');
     print('  - Robot battery: $robotBatteryTopic');
+    print('  - Robot status: $robotStatusTopic');
+    print('  - Container status: $containerStatusTopic');
+    print('  - Trip progress: $tripTopic');
+    print('  - QR code: $qrCodeTopic');
+    print('  - Force move: $forcMoveTopic');
+    print('  - Warning: $warningTopic');
 
     // Subscribe to all topics
     for (final topic in topics) {
@@ -162,9 +172,11 @@ class MqttService {
           data['robotId'] = topicParts[1];
 
           // Determine message type based on topic structure
-          if (topicParts.length >= 5 && topicParts[2] == 'container') {
-            // robot/{robotId}/container/{containerId}/status
-            data['containerId'] = topicParts[3];
+          if (topicParts.length >= 4 && topicParts[2] == 'container') {
+            // robot/{robotId}/container/{containerId} or robot/{robotId}/container
+            if (topicParts.length >= 4) {
+              data['containerId'] = topicParts[3];
+            }
             data['messageType'] = 'container_status';
             data['isContainerStatus'] = true;
           } else if (topicParts.length == 3) {
@@ -173,7 +185,7 @@ class MqttService {
             switch (messageType) {
               case 'status':
                 data['messageType'] = 'robot_status';
-                data['isContainerStatus'] = false;
+                data['isRobotStatus'] = true;
                 break;
               case 'location':
                 data['messageType'] = 'robot_location';
@@ -183,10 +195,33 @@ class MqttService {
                 data['messageType'] = 'robot_battery';
                 data['isBatteryUpdate'] = true;
                 break;
+              case 'trip':
+                data['messageType'] = 'trip_progress';
+                data['isTripProgress'] = true;
+                break;
+              case 'qr-code':
+                data['messageType'] = 'qr_code';
+                data['isQrCode'] = true;
+                break;
+              case 'force_move':
+                data['messageType'] = 'force_move';
+                data['isForceMove'] = true;
+                break;
+              case 'warning':
+                data['messageType'] = 'warning';
+                data['isWarning'] = true;
+                break;
               default:
                 data['messageType'] = 'unknown';
+                print('MqttService: Unknown message type: $messageType');
             }
+          } else {
+            data['messageType'] = 'unknown_topic_structure';
+            print('MqttService: Unknown topic structure: $topic');
           }
+        } else {
+          data['messageType'] = 'invalid_topic';
+          print('MqttService: Invalid topic format: $topic');
         }
 
         // Process background notifications for delivery status
@@ -455,47 +490,273 @@ class MqttService {
     try {
       final messageType = data['messageType'] as String?;
       final robotId = data['robotId'] as String?;
-      final status = data['status'] as String?;
-      final location = data['location'] as String?;
 
-      // Only send notifications for delivery-related status updates
-      if (messageType == 'robot_status' && robotId != null && status != null) {
+      switch (messageType) {
+        case 'robot_status':
+          await _processRobotStatusNotification(data, robotId);
+          break;
+        case 'warning':
+          await _processWarningNotification(data, robotId);
+          break;
+        case 'trip_progress':
+          await _processTripProgressNotification(data, robotId);
+          break;
+        case 'qr_code':
+          await _processQrCodeNotification(data, robotId);
+          break;
+        case 'force_move':
+          await _processForceMoveNotification(data, robotId);
+          break;
+        case 'battery':
+          await _processBatteryNotification(data, robotId);
+          break;
+        // Container status, location updates don't usually need notifications
+        default:
+          // Log other message types for debugging
+          print(
+            'MqttService: Background processing for $messageType - no notification needed',
+          );
+      }
+    } catch (e) {
+      print('MqttService: Error processing background notification: $e');
+      // Continue silently - notifications are not critical for app function
+    }
+  }
+
+  /// Process robot status notifications
+  static Future<void> _processRobotStatusNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final status = data['status'] as String?;
+    final location = data['location'] as String?;
+
+    if (robotId != null && status != null) {
+      String? notificationTitle;
+      String? notificationBody;
+
+      // Check for pickup arrival (robot reached pickup location)
+      if (status.toLowerCase() == 'arrived' && location != null) {
+        if (location.toLowerCase().contains('pickup') ||
+            location.toLowerCase().contains('start') ||
+            location.toLowerCase().contains('origin')) {
+          notificationTitle = 'Robot Arrived at Pickup';
+          notificationBody =
+              'Robot $robotId has arrived at pickup location. Please scan QR code to open container.';
+        }
+        // Check for delivery arrival (robot reached delivery location)
+        else if (location.toLowerCase().contains('delivery') ||
+            location.toLowerCase().contains('destination') ||
+            location.toLowerCase().contains('end')) {
+          notificationTitle = 'Robot Arrived at Delivery';
+          notificationBody =
+              'Robot $robotId has arrived at delivery location. Please scan QR code to receive your package.';
+        }
+      }
+
+      // Send notification if we have a relevant status update
+      if (notificationTitle != null && notificationBody != null) {
+        await NotificationService().showPhase1Notification(
+          title: notificationTitle,
+          body: notificationBody,
+        );
+        print(
+          'MqttService: Robot status notification sent - $notificationTitle',
+        );
+      }
+    }
+  }
+
+  /// Process warning notifications
+  static Future<void> _processWarningNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final warningType = data['warning_type'] as String?;
+    final warningMessage = data['message'] as String?;
+    final severity = data['severity'] as String?;
+
+    if (robotId != null && warningMessage != null) {
+      String notificationTitle = 'Robot Warning';
+      String notificationBody = 'Robot $robotId: $warningMessage';
+
+      // Customize title based on severity
+      if (severity != null) {
+        switch (severity.toLowerCase()) {
+          case 'critical':
+            notificationTitle = 'CRITICAL: Robot Alert';
+            break;
+          case 'high':
+            notificationTitle = 'HIGH: Robot Warning';
+            break;
+          case 'medium':
+            notificationTitle = 'Robot Warning';
+            break;
+          case 'low':
+            notificationTitle = 'Robot Info';
+            break;
+        }
+      }
+
+      // Further customize title based on warning type
+      if (warningType != null) {
+        final typeTitle = switch (warningType.toLowerCase()) {
+          'battery_low' => 'Battery Low',
+          'obstacle' => 'Obstacle Detected',
+          'maintenance' => 'Maintenance Required',
+          'security' => 'Security Alert',
+          _ => warningType.toUpperCase(),
+        };
+
+        if (severity?.toLowerCase() == 'critical') {
+          notificationTitle = 'CRITICAL: Robot $typeTitle';
+        } else {
+          notificationTitle = 'Robot $typeTitle';
+        }
+      }
+
+      await NotificationService().showPhase1Notification(
+        title: notificationTitle,
+        body: notificationBody,
+      );
+      print('MqttService: Warning notification sent - $notificationTitle');
+    }
+  }
+
+  /// Process trip progress notifications (status-based)
+  static Future<void> _processTripProgressNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final tripId = data['trip_id'] as String?;
+    final status = data['status'] as int?;
+    final progress = data['progress'] as num?;
+
+    if (robotId != null &&
+        tripId != null &&
+        status != null &&
+        progress != null) {
+      // Only send notifications for important status transitions at 100% progress
+      if (progress >= 100.0 || progress >= 1.0) {
         String? notificationTitle;
         String? notificationBody;
 
-        // Check for pickup arrival (robot reached pickup location)
-        if (status.toLowerCase() == 'arrived' && location != null) {
-          if (location.toLowerCase().contains('pickup') ||
-              location.toLowerCase().contains('start') ||
-              location.toLowerCase().contains('origin')) {
-            notificationTitle = 'Robot Arrived at Pickup';
+        switch (status) {
+          case 1: // Load - Robot ready for loading at pickup
+            notificationTitle = 'Ready for Loading';
             notificationBody =
-                'Robot $robotId has arrived at pickup location. Please scan QR code to open container.';
-          }
-          // Check for delivery arrival (robot reached delivery location)
-          else if (location.toLowerCase().contains('delivery') ||
-              location.toLowerCase().contains('destination') ||
-              location.toLowerCase().contains('end')) {
-            notificationTitle = 'Robot Arrived at Delivery';
+                'Robot $robotId is ready for loading at pickup location. Please scan QR code.';
+            break;
+          case 3: // Delivered - Robot ready for unloading at delivery
+            notificationTitle = 'Ready for Pickup';
             notificationBody =
-                'Robot $robotId has arrived at delivery location. Please scan QR code to receive your package.';
-          }
+                'Robot $robotId has arrived at delivery location. Please scan QR code to collect your items.';
+            break;
+          case 4: // Finish - Trip completed
+            notificationTitle = 'Delivery Completed';
+            notificationBody = 'Trip $tripId has been completed successfully.';
+            break;
         }
 
-        // Send notification if we have a relevant status update
         if (notificationTitle != null && notificationBody != null) {
           await NotificationService().showPhase1Notification(
             title: notificationTitle,
             body: notificationBody,
           );
           print(
-            'MqttService: Background notification sent - $notificationTitle',
+            'MqttService: Trip progress notification sent - $notificationTitle',
           );
         }
       }
-    } catch (e) {
-      print('MqttService: Error processing background notification: $e');
-      // Continue silently - notifications are not critical for app function
+    }
+  }
+
+  /// Process QR code notifications
+  static Future<void> _processQrCodeNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final qrType = data['qr_type'] as String?;
+    final action = data['action'] as String?;
+
+    if (robotId != null && qrType != null) {
+      String notificationTitle = 'QR Code Update';
+      String notificationBody = 'Robot $robotId QR code status updated.';
+
+      if (action != null) {
+        switch (action.toLowerCase()) {
+          case 'scanned':
+            notificationTitle = 'QR Code Scanned';
+            notificationBody =
+                'QR code successfully scanned for robot $robotId.';
+            break;
+          case 'generated':
+            notificationTitle = 'QR Code Ready';
+            notificationBody = 'New QR code generated for robot $robotId.';
+            break;
+          case 'expired':
+            notificationTitle = 'QR Code Expired';
+            notificationBody =
+                'QR code for robot $robotId has expired. Please request a new one.';
+            break;
+        }
+      }
+
+      await NotificationService().showPhase1Notification(
+        title: notificationTitle,
+        body: notificationBody,
+      );
+      print('MqttService: QR code notification sent - $notificationTitle');
+    }
+  }
+
+  /// Process force move notifications
+  static Future<void> _processForceMoveNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final moveType = data['move_type'] as String?;
+    final reason = data['reason'] as String?;
+
+    if (robotId != null) {
+      String notificationTitle = 'Robot Force Move';
+      String notificationBody = 'Robot $robotId has been force moved.';
+
+      if (reason != null) {
+        notificationBody += ' Reason: $reason';
+      } else if (moveType != null) {
+        notificationBody += ' Type: $moveType';
+      }
+
+      await NotificationService().showPhase1Notification(
+        title: notificationTitle,
+        body: notificationBody,
+      );
+      print('MqttService: Force move notification sent - $notificationTitle');
+    }
+  }
+
+  /// Process battery notifications
+  static Future<void> _processBatteryNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final batteryLevel = data['battery_level'] as num?;
+    final isCharging = data['is_charging'] as bool?;
+
+    if (robotId != null && batteryLevel != null) {
+      // Only notify for low battery warnings
+      if (batteryLevel <= 20 && isCharging != true) {
+        String notificationTitle = 'Robot Battery Low';
+        String notificationBody =
+            'Robot $robotId battery level is ${batteryLevel.toInt()}%. Charging recommended.';
+
+        await NotificationService().showPhase1Notification(
+          title: notificationTitle,
+          body: notificationBody,
+        );
+        print('MqttService: Battery notification sent - $notificationTitle');
+      }
     }
   }
 }
