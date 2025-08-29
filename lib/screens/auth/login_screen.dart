@@ -164,25 +164,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 top: (ScreenSize.height(context) * 0.15),
                 bottom: (ScreenSize.width(context) * 0.1),
               ),
-              decoration: BoxDecoration(
-                color: isDarkMode
-                    ? AppColors.backgroundColor
-                    : AppColors.dmBackgroundColor,
-              ),
+              decoration: BoxDecoration(color: AppColors.dmBackgroundColor),
               child: Column(
                 children: [
                   Text(
                     tr('auth.login'),
-                    style: isDarkMode
-                        ? AppTypography.heading(context)
-                        : AppTypography.dmHeading(context),
+                    style: AppTypography.dmHeading(context),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     tr('auth.login_subtitle'),
-                    style: isDarkMode
-                        ? AppTypography.subTitleText(context)
-                        : AppTypography.dmSubTitleText(context),
+                    style: AppTypography.dmSubTitleText(context),
                   ),
                 ],
               ),
