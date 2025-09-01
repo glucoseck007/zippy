@@ -289,4 +289,46 @@ class OrderService {
       return false;
     }
   }
+
+  /// Get order details by order code
+  static Future<OrderResponse?> getOrderByCode(String orderCode) async {
+    try {
+      print('OrderService: Getting order details for order code: $orderCode');
+
+      final response = await ApiClient.get('/order/$orderCode');
+
+      print('OrderService: Response status code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final orderResponse = OrderResponse.fromJson(jsonData);
+
+        print('OrderService: Successfully retrieved order details by code');
+        return orderResponse;
+      } else {
+        print(
+          'OrderService: Failed to get order by code with status code: ${response.statusCode}',
+        );
+        print('OrderService: Error response: ${response.body}');
+
+        try {
+          final jsonData = json.decode(response.body);
+          return OrderResponse.fromJson(jsonData);
+        } catch (e) {
+          return OrderResponse(
+            success: false,
+            message: 'Failed to retrieve order details',
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      print('OrderService: Error getting order by code: $e');
+      print('OrderService: Stack trace: $stackTrace');
+
+      return OrderResponse(
+        success: false,
+        message: 'Network error: Failed to retrieve order',
+      );
+    }
+  }
 }

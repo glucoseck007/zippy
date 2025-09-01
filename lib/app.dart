@@ -51,7 +51,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       // Initialize language state from EasyLocalization
       ref.read(languageProvider.notifier).initLocale(context);
 
-      // Sync theme with system setting
+      // Sync theme state with system setting (for internal state tracking)
       final brightness = MediaQuery.platformBrightnessOf(context);
       ref
           .read(themeProvider.notifier)
@@ -75,8 +75,20 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    // Update theme state when system theme changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final brightness = MediaQuery.platformBrightnessOf(context);
+      ref
+          .read(themeProvider.notifier)
+          .toggleTheme(brightness == Brightness.dark);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = ref.watch(themeProvider);
     final language = ref.watch(languageProvider);
 
     return MaterialApp(
@@ -86,7 +98,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       title: 'Zippy Mobile App',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
-      themeMode: theme.themeMode,
+      themeMode: ThemeMode.system, // Let system decide theme mode
       theme: AppTheme.lightThemeFallback,
       darkTheme: AppTheme.darkThemeFallback,
       locale: language.locale,

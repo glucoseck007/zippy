@@ -374,7 +374,8 @@
       "completed": "Đã hoàn thành",
       "cancelled": "Đã hủy",
       "in_transit": "Đang vận chuyển",
-      "delivered": "Đã đến nơi"
+      "delivered": "Đã đến nơi",
+      "paid": "Đã thanh toán"
     },
     "common":{
       "ok": "OK"
@@ -427,7 +428,7 @@
     "amount": "Số tiền",
     "description": "Mô tả",
     "verifying_payment": "Đang xác minh thanh toán...",
-    "please_wait": "Vui lòng đợi trong khi chúng tôi xác nhận thanh toán của bạn",
+    "please_wait": "Vui lòng đợi xác nhận thanh toán",
     "success_title": "Thanh toán thành công!",
     "success_message": "Thanh toán của bạn đã được xử lý thành công. Đơn hàng của bạn đã được xác nhận.",
     "failed_title": "Thanh toán thất bại",

@@ -24,6 +24,8 @@ class _PaymentManagementScreenState
   List<OrderListItem> _allOrders = [];
   List<OrderListItem> _paidOrders = [];
   List<OrderListItem> _unpaidOrders = [];
+  Map<String, double?> _orderPrices =
+      {}; // Cache for order prices by order code
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
@@ -63,6 +65,15 @@ class _PaymentManagementScreenState
         setState(() {
           _allOrders = orderResponse!.data;
           _splitOrdersByPaymentStatus();
+        });
+
+        // Fetch prices for all orders in parallel
+        final pricesFutures = _allOrders.map(
+          (order) => _fetchOrderPrice(order.orderCode),
+        );
+        await Future.wait(pricesFutures);
+
+        setState(() {
           _isLoading = false;
         });
       } else {
@@ -71,7 +82,15 @@ class _PaymentManagementScreenState
     } catch (e) {
       setState(() {
         _hasError = true;
-        _errorMessage = e.toString();
+        // Provide more specific error messages
+        if (e.toString().contains('ERR_NAME_NOT_RESOLVED') ||
+            e.toString().contains('SocketException') ||
+            e.toString().contains('NetworkException')) {
+          _errorMessage =
+              'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.';
+        } else {
+          _errorMessage = e.toString();
+        }
         _isLoading = false;
       });
     }
@@ -87,15 +106,16 @@ class _PaymentManagementScreenState
   }
 
   Future<void> _handlePayment(OrderListItem order) async {
-    // Since OrderListItem doesn't have price, we'll use a default amount
-    // You may want to fetch the price from another API or use a fixed amount
-    const defaultAmount = 100000.0; // 100,000 VND as default
+    // Fetch the actual price from OrderService
+    final actualPrice = await _fetchOrderPrice(order.orderCode);
+    final amount =
+        actualPrice ?? 100000.0; // Fallback to default if price not found
 
     final result = await PaymentHelper.launchPayment(
       context: context,
       orderId: order.orderId,
       orderCode: order.orderCode,
-      amount: defaultAmount,
+      amount: amount,
       orderDescription: order.productName,
     );
 
@@ -124,6 +144,29 @@ class _PaymentManagementScreenState
       }
     }
     // result == null means user cancelled
+  }
+
+  Future<double?> _fetchOrderPrice(String orderCode) async {
+    // Check if price is already cached
+    if (_orderPrices.containsKey(orderCode)) {
+      return _orderPrices[orderCode];
+    }
+
+    try {
+      final orderResponse = await OrderService.getOrderByCode(orderCode);
+      if (orderResponse?.success == true &&
+          orderResponse?.data?.price != null) {
+        final price = orderResponse!.data!.price!;
+        // Cache the price
+        _orderPrices[orderCode] = price;
+        return price;
+      }
+    } catch (e) {
+      print('Error fetching order price for $orderCode: $e');
+    }
+
+    // Return null if price couldn't be fetched
+    return null;
   }
 
   @override
@@ -264,25 +307,28 @@ class _PaymentManagementScreenState
             Text(
               tr('payment.management.no_unpaid_orders'),
               style: isDarkMode
-                  ? AppTypography.dmHeading(
+                  ? AppTypography.dmTitleText(
                       context,
                     ).copyWith(color: Colors.grey[400])
-                  : AppTypography.heading(
+                  : AppTypography.titleText(
                       context,
                     ).copyWith(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
-              tr('payment.management.no_unpaid_orders_subtitle'),
-              style: isDarkMode
-                  ? AppTypography.dmBodyText(
-                      context,
-                    ).copyWith(color: Colors.grey[500])
-                  : AppTypography.bodyText(
-                      context,
-                    ).copyWith(color: Colors.grey[500]),
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                tr('payment.management.no_unpaid_orders_subtitle'),
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(
+                        context,
+                      ).copyWith(color: Colors.grey[500], fontSize: 14)
+                    : AppTypography.bodyText(
+                        context,
+                      ).copyWith(color: Colors.grey[500], fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
@@ -424,17 +470,52 @@ class _PaymentManagementScreenState
                   size: 16,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  _formatAmount(
-                    100000.0,
-                  ), // Default amount since OrderListItem doesn't have price
-                  style: isDarkMode
-                      ? AppTypography.dmHeading(
-                          context,
-                        ).copyWith(fontSize: 18, color: Colors.orange)
-                      : AppTypography.heading(
-                          context,
-                        ).copyWith(fontSize: 18, color: Colors.orange),
+                FutureBuilder<double?>(
+                  future: _fetchOrderPrice(order.orderCode),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Container(
+                        width: 100,
+                        height: 20,
+                        color: Colors.transparent,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.orange,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return Text(
+                        'N/A',
+                        style: isDarkMode
+                            ? AppTypography.dmBodyText(context).copyWith(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w600,
+                              )
+                            : AppTypography.bodyText(context).copyWith(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w600,
+                              ),
+                      );
+                    }
+
+                    final price = snapshot.data!;
+                    return Text(
+                      _formatAmount(price),
+                      style: isDarkMode
+                          ? AppTypography.dmHeading(
+                              context,
+                            ).copyWith(fontSize: 18, color: Colors.orange)
+                          : AppTypography.heading(
+                              context,
+                            ).copyWith(fontSize: 18, color: Colors.orange),
+                    );
+                  },
                 ),
               ],
             ),
@@ -542,17 +623,52 @@ class _PaymentManagementScreenState
                   size: 16,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  _formatAmount(
-                    100000.0,
-                  ), // Default amount since OrderListItem doesn't have price
-                  style: isDarkMode
-                      ? AppTypography.dmHeading(
-                          context,
-                        ).copyWith(fontSize: 18, color: Colors.green)
-                      : AppTypography.heading(
-                          context,
-                        ).copyWith(fontSize: 18, color: Colors.green),
+                FutureBuilder<double?>(
+                  future: _fetchOrderPrice(order.orderCode),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Container(
+                        width: 100,
+                        height: 20,
+                        color: Colors.transparent,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.green,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return Text(
+                        'N/A',
+                        style: isDarkMode
+                            ? AppTypography.dmBodyText(context).copyWith(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w600,
+                              )
+                            : AppTypography.bodyText(context).copyWith(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w600,
+                              ),
+                      );
+                    }
+
+                    final price = snapshot.data!;
+                    return Text(
+                      _formatAmount(price),
+                      style: isDarkMode
+                          ? AppTypography.dmHeading(
+                              context,
+                            ).copyWith(fontSize: 18, color: Colors.green)
+                          : AppTypography.heading(
+                              context,
+                            ).copyWith(fontSize: 18, color: Colors.green),
+                    );
+                  },
                 ),
                 const Spacer(),
                 Text(

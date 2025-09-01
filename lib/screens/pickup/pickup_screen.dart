@@ -101,6 +101,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
         return tr('pickup.status.in_transit');
       case 'delivered':
         return tr('pickup.status.delivered');
+      case 'paid':
+        return tr('pickup.status.paid');
       default:
         return status;
     }
@@ -114,12 +116,13 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
       case 'approved':
       case 'in_progress':
       case 'in_transit':
-        return Colors.green;
       case 'delivered':
       case 'completed':
         return Colors.blue;
       case 'cancelled':
         return Colors.red;
+      case 'paid':
+        return Colors.green;
       default:
         return Colors.grey;
     }
@@ -139,6 +142,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
         return Icons.check_circle;
       case 'cancelled':
         return Icons.cancel;
+      case 'paid':
+        return Icons.payment;
       default:
         return Icons.info;
     }
@@ -748,66 +753,68 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
 
             const SizedBox(height: 16),
 
-            // Action button (View Progress, Receive Order, or Pay)
-            SizedBox(
-              width: double.infinity,
-              child: order.status.toLowerCase() == 'pending'
-                  ? ElevatedButton.icon(
-                      onPressed: null, // Disabled button
-                      icon: const Icon(Icons.schedule, size: 18),
-                      label: Text(tr('pickup.status.pending')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+            // Action button (View Progress, Receive Order, Pay, or hidden for paid orders)
+            if (order.status.toLowerCase() !=
+                'paid') // Only show button if not paid
+              SizedBox(
+                width: double.infinity,
+                child: order.status.toLowerCase() == 'pending'
+                    ? ElevatedButton.icon(
+                        onPressed: null, // Disabled button
+                        icon: const Icon(Icons.schedule, size: 18),
+                        label: Text(tr('pickup.status.pending')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    : order.status.toLowerCase() == 'delivered'
+                    ? ElevatedButton.icon(
+                        onPressed: () => _handleReceiveOrder(order),
+                        icon: const Icon(Icons.qr_code_scanner, size: 18),
+                        label: Text(tr('pickup.receive_order')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    : order.status.toLowerCase() == 'finished' ||
+                          order.status.toLowerCase() == 'completed'
+                    ? ElevatedButton.icon(
+                        onPressed: () => _handlePayOrder(order),
+                        icon: const Icon(Icons.payment, size: 18),
+                        label: Text(tr('pickup.pay_order')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.yellow[700],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: () => _showTripProgress(order),
+                        icon: const Icon(Icons.timeline, size: 18),
+                        label: Text(tr('pickup.view_progress')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.buttonColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
-                    )
-                  : order.status.toLowerCase() == 'delivered'
-                  ? ElevatedButton.icon(
-                      onPressed: () => _handleReceiveOrder(order),
-                      icon: const Icon(Icons.qr_code_scanner, size: 18),
-                      label: Text(tr('pickup.receive_order')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    )
-                  : order.status.toLowerCase() == 'finished' ||
-                        order.status.toLowerCase() == 'completed'
-                  ? ElevatedButton.icon(
-                      onPressed: () => _handlePayOrder(order),
-                      icon: const Icon(Icons.payment, size: 18),
-                      label: Text(tr('pickup.pay_order')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.yellow[700],
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    )
-                  : ElevatedButton.icon(
-                      onPressed: () => _showTripProgress(order),
-                      icon: const Icon(Icons.timeline, size: 18),
-                      label: Text(tr('pickup.view_progress')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.buttonColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-            ),
+              ),
           ],
         ),
       ),

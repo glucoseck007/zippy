@@ -155,8 +155,8 @@ class PersistentMqttManager {
       final success = await MqttService.initialize(
         brokerHost: '36.50.135.207',
         brokerPort: 1883,
-        username: 'khanhnc',
-        password: '12345678',
+        username: 'admin',
+        password: '123@123',
         clientId: 'persistent_${DateTime.now().millisecondsSinceEpoch}',
       );
 

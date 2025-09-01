@@ -422,8 +422,8 @@ class MqttService {
     return await initialize(
       brokerHost: '36.50.135.207', // MQTT broker host
       brokerPort: 1883,
-      username: 'khanhnc',
-      password: '12345678',
+      username: 'admin',
+      password: '123@123',
     );
   }
 
@@ -452,7 +452,7 @@ class MqttService {
           .startClean()
           .withWillQos(MqttQos.atLeastOnce);
 
-      connMess.authenticateAs('khanhnc', '12345678');
+      connMess.authenticateAs('admin', '123@123');
       testClient.connectionMessage = connMess;
 
       print('MqttService: Attempting test connection...');

@@ -1,5 +1,4 @@
 class PaymentStatusResponse {
-  final String paymentId;
   final String paymentStatus; // PAID, PENDING, FAILED, etc.
   final String orderStatus;
   final double amount;
@@ -7,7 +6,6 @@ class PaymentStatusResponse {
   final DateTime? paidAt;
 
   const PaymentStatusResponse({
-    required this.paymentId,
     required this.paymentStatus,
     required this.orderStatus,
     required this.amount,
@@ -17,7 +15,6 @@ class PaymentStatusResponse {
 
   factory PaymentStatusResponse.fromJson(Map<String, dynamic> json) {
     return PaymentStatusResponse(
-      paymentId: json['paymentId'] as String? ?? '',
       paymentStatus: json['paymentStatus'] as String? ?? 'UNKNOWN',
       orderStatus: json['orderStatus'] as String? ?? 'UNKNOWN',
       amount: json['amount'] is num ? (json['amount'] as num).toDouble() : 0.0,
@@ -32,7 +29,6 @@ class PaymentStatusResponse {
 
   Map<String, dynamic> toJson() {
     return {
-      'paymentId': paymentId,
       'paymentStatus': paymentStatus,
       'orderStatus': orderStatus,
       'amount': amount,
@@ -47,6 +43,6 @@ class PaymentStatusResponse {
 
   @override
   String toString() {
-    return 'PaymentStatusResponse(paymentId: $paymentId, paymentStatus: $paymentStatus, orderStatus: $orderStatus, amount: $amount, createdAt: $createdAt, paidAt: $paidAt)';
+    return 'PaymentStatusResponse(paymentStatus: $paymentStatus, orderStatus: $orderStatus, amount: $amount, createdAt: $createdAt, paidAt: $paidAt)';
   }
 }

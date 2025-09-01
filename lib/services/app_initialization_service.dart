@@ -72,8 +72,8 @@ class AppInitializationService {
     const mqttConfig = MqttConfig(
       brokerHost: '36.50.135.207', // MQTT broker host
       brokerPort: 1883, // Replace with your MQTT broker port
-      username: 'khanhnc', // Add username if required
-      password: '12345678', // Add password if required
+      username: 'admin', // Add username if required
+      password: '123@123', // Add password if required
     );
 
     final success = await MqttManager.initialize(config: mqttConfig);

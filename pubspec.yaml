@@ -55,20 +55,7 @@ dev_dependencies:
   freezed: ^2.4.6
   json_serializable: ^6.7.1
   flutter_launcher_icons: ^0.13.1
-
-flutter_native_splash:
-  color: "#ffffff"
-  image: assets/images/splash.png
-  branding: assets/images/logo.png
-  color_dark: "#000000"
-  image_dark: assets/images/splash.png
-  branding_dark: assets/images/logo.png
-  android_12:
-    image: assets/images/splash.png
-    icon_background_color: "#ffffff"
-    image_dark: assets/images/splash.png
-    icon_background_color_dark: "#000000"
-  web: false
+  
 
 flutter_launcher_icons:
   android: "launcher_icon"

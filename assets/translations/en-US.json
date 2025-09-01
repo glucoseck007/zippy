@@ -374,7 +374,8 @@
       "completed": "Completed",
       "cancelled": "Cancelled",
       "in_transit": "In Transit",
-      "delivered": "Delivered"
+      "delivered": "Delivered",
+      "paid": "Paid"
     },
     "common":{
       "ok": "OK"

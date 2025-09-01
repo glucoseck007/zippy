@@ -574,7 +574,7 @@ Future<bool> _connectToMqttAndCheck(
           .withWillQos(MqttQos.atLeastOnce);
 
       // Add authentication with background-specific credentials if needed
-      connMess.authenticateAs('khanhnc', '12345678');
+      connMess.authenticateAs('admin', '123@123');
       client.connectionMessage = connMess;
 
       await _logBackgroundExecution(
@@ -768,7 +768,7 @@ Future<bool> _connectToMqttAndCheckTripProgress(
           .startClean()
           .withWillQos(MqttQos.atLeastOnce);
 
-      connMess.authenticateAs('khanhnc', '12345678');
+      connMess.authenticateAs('admin', '123@123');
       client.connectionMessage = connMess;
 
       await _logBackgroundExecution(

@@ -69,26 +69,3 @@ class PaymentHelper {
     );
   }
 }
-
-/// Example usage in your order/pickup screens:
-/// 
-/// ```dart
-/// // In your order screen or wherever you want to initiate payment
-/// void _handlePayment() async {
-///   final result = await PaymentHelper.launchPayment(
-///     context: context,
-///     orderId: widget.orderCode,
-///     amount: order.price,
-///     orderDescription: order.productName,
-///   );
-///   
-///   if (result == true) {
-///     // Payment successful
-///     _onPaymentSuccess();
-///   } else if (result == false) {
-///     // Payment failed
-///     _onPaymentFailure();
-///   }
-///   // result == null means user cancelled without completing payment
-/// }
-/// ```
