@@ -6,7 +6,6 @@ import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/services/pickup/pickup_service.dart';
-import 'package:zippy/services/trip/trip_service.dart';
 import 'package:zippy/screens/pickup/trip_progress_screen.dart';
 
 class OTPVerificationDialog extends ConsumerStatefulWidget {
@@ -342,7 +341,7 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
     final isDarkMode = themeState.isDarkMode;
 
     try {
-      final response = await PickupService.sendOtp(
+      final response = await PickupService.resendOtp(
         widget.orderCode,
         widget.tripCode,
       );
@@ -471,7 +470,21 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context); // Close container dialog
-                _autoContinueTrip(); // Continue with the trip
+
+                // Navigate to trip progress screen with continue button enabled
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TripProgressScreen(
+                      tripCode: widget.tripCode,
+                      orderCode: widget.orderCode,
+                      robotCode: widget.robotCode,
+                      showContinueButton: true,
+                    ),
+                  ),
+                );
+
+                widget.onSuccess(); // Refresh the pickup screen
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: isDarkMode
@@ -488,277 +501,6 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
         );
       },
     );
-  }
-
-  Future<void> _autoContinueTrip() async {
-    // Check if widget is still mounted before accessing ref
-    if (!mounted) return;
-
-    final themeState = ref.read(themeProvider);
-    final isDarkMode = themeState.isDarkMode;
-
-    try {
-      // Check mounted again before showing dialog
-      if (!mounted) return;
-
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(
-                  'Continuing your trip...',
-                  style: isDarkMode
-                      ? AppTypography.dmBodyText(context)
-                      : AppTypography.bodyText(context),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        },
-      );
-
-      // Call the trip continuation API
-      final response = await TripService.continueTrip(widget.tripCode);
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-
-        if (response != null && response.success) {
-          // Show success dialog
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                backgroundColor: isDarkMode
-                    ? AppColors.dmCardColor
-                    : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: isDarkMode
-                          ? AppColors.dmSuccessColor
-                          : AppColors.successColor,
-                      size: 64,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Trip continued successfully!',
-                      style: isDarkMode
-                          ? AppTypography.dmHeading(context)
-                          : AppTypography.heading(context),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your robot is now heading to the delivery location.',
-                      style: isDarkMode
-                          ? AppTypography.dmBodyText(context)
-                          : AppTypography.bodyText(context),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-                actions: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close success dialog
-                      widget.onSuccess(); // Refresh the pickup screen
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode
-                          ? AppColors.dmButtonColor
-                          : AppColors.buttonColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(tr('pickup.common.ok')),
-                  ),
-                ],
-              );
-            },
-          );
-        } else {
-          // Show error dialog
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                backgroundColor: isDarkMode
-                    ? AppColors.dmCardColor
-                    : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.error,
-                      color: isDarkMode
-                          ? AppColors.dmRejectColor
-                          : AppColors.rejectColor,
-                      size: 64,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Failed to continue trip',
-                      style: isDarkMode
-                          ? AppTypography.dmHeading(context)
-                          : AppTypography.heading(context),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      response?.message ??
-                          'Please try again or contact support.',
-                      style: isDarkMode
-                          ? AppTypography.dmBodyText(context)
-                          : AppTypography.bodyText(context),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close error dialog
-                    },
-                    child: Text(
-                      tr('pickup.confirm_pickup.cancel'),
-                      style: isDarkMode
-                          ? AppTypography.dmBodyText(
-                              context,
-                            ).copyWith(color: Colors.grey[400])
-                          : AppTypography.bodyText(
-                              context,
-                            ).copyWith(color: Colors.grey[600]),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close error dialog
-                      _autoContinueTrip(); // Retry
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode
-                          ? AppColors.dmButtonColor
-                          : AppColors.buttonColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text('Try Again'),
-                  ),
-                ],
-              );
-            },
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog if still open
-
-        // Show network error dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: isDarkMode
-                  ? AppColors.dmCardColor
-                  : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.wifi_off,
-                    color: isDarkMode
-                        ? AppColors.dmRejectColor
-                        : AppColors.rejectColor,
-                    size: 64,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Connection Error',
-                    style: isDarkMode
-                        ? AppTypography.dmHeading(context)
-                        : AppTypography.heading(context),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Please check your internet connection and try again.',
-                    style: isDarkMode
-                        ? AppTypography.dmBodyText(context)
-                        : AppTypography.bodyText(context),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context); // Close error dialog
-                  },
-                  child: Text(
-                    tr('pickup.confirm_pickup.cancel'),
-                    style: isDarkMode
-                        ? AppTypography.dmBodyText(
-                            context,
-                          ).copyWith(color: Colors.grey[400])
-                        : AppTypography.bodyText(
-                            context,
-                          ).copyWith(color: Colors.grey[600]),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context); // Close error dialog
-                    _autoContinueTrip(); // Retry
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDarkMode
-                        ? AppColors.dmButtonColor
-                        : AppColors.buttonColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text('Try Again'),
-                ),
-              ],
-            );
-          },
-        );
-      }
-    }
   }
 
   void _showSuccessDialog() {

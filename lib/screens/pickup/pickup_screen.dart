@@ -28,6 +28,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
   bool _hasError = false;
   String? _errorMessage;
   List<OrderListItem> _orders = [];
+  // Track which orders are awaiting QR scans
+  Map<String, bool> _ordersAwaitingQR = {};
 
   @override
   void initState() {
@@ -64,6 +66,19 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
             _orders = response.data;
             _isLoading = false;
           });
+
+          // Check QR status for in-progress orders
+          for (final order in response.data) {
+            if (order.status.toLowerCase() == 'in_progress') {
+              _checkIfAwaitingQRScan(order).then((isAwaiting) {
+                if (mounted) {
+                  setState(() {
+                    // This will trigger a rebuild with updated button state
+                  });
+                }
+              });
+            }
+          }
         } else {
           setState(() {
             _hasError = true;
@@ -81,6 +96,62 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
         });
       }
     }
+  }
+
+  // Check if an order's trip is awaiting QR scan
+  Future<bool> _checkIfAwaitingQRScan(OrderListItem order) async {
+    try {
+      // Only check for in_progress orders
+      if (order.status.toLowerCase() != 'in_progress') {
+        return false;
+      }
+
+      final tripResponse = await TripService.getTripByOrderCode(
+        order.orderCode,
+      );
+      if (tripResponse == null ||
+          !tripResponse.success ||
+          tripResponse.data == null) {
+        return false;
+      }
+
+      final tripCode = tripResponse.data!.tripCode;
+      final tripDetails = await TripService.getTripDetails(tripCode);
+
+      if (tripDetails == null) {
+        return false;
+      }
+
+      // Check if trip is in a state that requires QR scanning
+      final awaitingPhase1QR =
+          tripDetails['awaitingPhase1QR'] as bool? ?? false;
+      final awaitingPhase2QR =
+          tripDetails['awaitingPhase2QR'] as bool? ?? false;
+
+      final isAwaitingQR = awaitingPhase1QR || awaitingPhase2QR;
+
+      // Update our tracking map
+      _ordersAwaitingQR[order.orderCode] = isAwaitingQR;
+
+      return isAwaitingQR;
+    } catch (e) {
+      print('Error checking QR status for order ${order.orderCode}: $e');
+      return false;
+    }
+  }
+
+  void _handleQRScan(OrderListItem order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QRScannerScreen(
+          onScanned: (qrCode) {
+            // QR scanning logic will handle the rest
+            print('QR Scanned for order ${order.orderCode}: $qrCode');
+          },
+        ),
+      ),
+    );
   }
 
   String _translateOrderStatus(String status) {
@@ -1082,7 +1153,68 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
       );
     }
 
-    // For other active orders - show view progress and cancel (if applicable)
+    // For other active orders - check if QR scan is needed or show view progress and cancel (if applicable)
+    final isAwaitingQR = _ordersAwaitingQR[order.orderCode] ?? false;
+
+    if (isAwaitingQR) {
+      // Show QR scan button when trip is awaiting QR scan
+      return canCancel
+          ? Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleQRScan(order),
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: Text(tr('pickup.trip_progress.scan_to_open')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleCancelOrder(order),
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: Text(tr('pickup.cancel_order')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _handleQRScan(order),
+                icon: const Icon(Icons.qr_code_scanner, size: 18),
+                label: Text(tr('pickup.trip_progress.scan_to_open')),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            );
+    }
+
+    // Default: show view progress and cancel (if applicable)
     return canCancel
         ? Column(
             children: [
