@@ -6,6 +6,9 @@ import '../notification/notification_service.dart';
 import '../storage/trip_storage_service.dart';
 import 'mqtt_service.dart';
 import '../../providers/robot/robot_provider.dart';
+import '../../models/dto/mqtt/robot_heartbeat_dto.dart';
+import '../../models/dto/mqtt/robot_container_dto.dart';
+import '../../models/dto/mqtt/trip_state_mqtt_dto.dart';
 
 /// A service that handles all MQTT payload processing across app states
 /// (active, background, launching, hidden, etc.)
@@ -50,25 +53,29 @@ class MqttPayloadHandler {
         return;
       }
 
-      // Handle robot status updates
-      if (topic.contains('robot') && topic.contains('status')) {
-        await _processRobotStatusMessage(data);
+      // Handle robot heartbeat updates (format: robot/{robotCode}/heartbeat)
+      if (topic.contains('robot') && topic.contains('heartbeat')) {
+        await _processRobotHeartbeatMessage(data);
+      }
+      // Handle robot container updates (format: robot/{robotCode}/container)
+      else if (topic.contains('robot') && topic.contains('container')) {
+        await _processRobotContainerMessage(data);
       }
       // Handle trip progress updates via format: robot/{robotCode}/trip
-      else if (topic.contains('robot') && topic.contains('trip')) {
+      else if (topic.contains('robot') && topic.contains('trip') && !topic.contains('trip/state')) {
         await _processRobotTripMessage(data);
       }
-      // Handle robot location updates
+      // Handle trip state updates via format: robot/{robotCode}/trip/state
+      else if (topic.contains('robot') && topic.contains('trip/state')) {
+        await _processRobotTripStateMessage(data);
+      }
+      // Handle robot location updates (format: robot/{robotCode}/location)
       else if (topic.contains('robot') && topic.contains('location')) {
         await _processRobotLocationMessage(data);
       }
       // Handle robot battery updates
       else if (topic.contains('robot') && topic.contains('battery')) {
         await _processRobotBatteryMessage(data);
-      }
-      // Handle robot container updates
-      else if (topic.contains('robot') && topic.contains('container')) {
-        await _processRobotContainerMessage(data);
       }
       // Handle robot QR code updates
       else if (topic.contains('robot') && topic.contains('qr-code')) {
@@ -97,26 +104,46 @@ class MqttPayloadHandler {
     }
   }
 
-  /// Process robot status messages
-  Future<void> _processRobotStatusMessage(Map<String, dynamic> data) async {
-    final robotId = data['robotId'] as String?;
-    final status = data['status'] as String?;
+  /// Process robot heartbeat messages from topic: robot/{robotCode}/heartbeat
+  /// Payload: {isAlive: bool, timestamp: string}
+  Future<void> _processRobotHeartbeatMessage(Map<String, dynamic> data) async {
+    try {
+      final topic = data['topic'] as String?;
+      if (topic == null) return;
 
-    if (robotId == null || status == null) return;
-
-    // Update robot state via provider
-    if (_providerContainer != null) {
-      try {
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotStatus(robotId: robotId, status: status, payload: data);
-      } catch (e) {
-        print('MqttPayloadHandler: Error updating robot provider: $e');
+      // Extract robot code from topic (format: robot/{robotCode}/heartbeat)
+      final topicParts = topic.split('/');
+      if (topicParts.length < 3 ||
+          topicParts[0] != 'robot' ||
+          topicParts[2] != 'heartbeat') {
+        print(
+          'MqttPayloadHandler: Invalid robot heartbeat topic format: $topic',
+        );
+        return;
       }
-    }
 
-    // Generate notifications based on status
-    await _generateRobotStatusNotifications(robotId, status, data);
+      final robotCode = topicParts[1];
+
+      // Create heartbeat DTO from payload
+      final heartbeatDto = RobotHeartbeatDto.fromJson(data);
+
+      print(
+        'MqttPayloadHandler: Robot heartbeat - Robot: $robotCode, Alive: ${heartbeatDto.isAlive}, Time: ${heartbeatDto.timestamp}',
+      );
+
+      // Update robot heartbeat via provider
+      if (_providerContainer != null) {
+        try {
+          _providerContainer!
+              .read(robotProvider.notifier)
+              .updateRobotHeartbeat(robotCode, heartbeatDto);
+        } catch (e) {
+          print('MqttPayloadHandler: Error updating robot heartbeat: $e');
+        }
+      }
+    } catch (e) {
+      print('MqttPayloadHandler: Error processing robot heartbeat message: $e');
+    }
   }
 
   /// Process robot trip messages (format: robot/{robotCode}/trip)
@@ -137,16 +164,12 @@ class MqttPayloadHandler {
 
       final robotId = topicParts[1];
 
-      // Extract trip data from payload
-      final tripId = data['trip_id'] as String?;
-      final progress = data['progress'] as num?;
-      final status = data['status'] as int?;
-      final startPoint = data['start_point'] as String?;
-      final endPoint = data['end_point'] as String?;
+      // Create trip state DTO from payload
+      final tripStateDto = TripStateMqttDto.fromJson(data);
 
-      if (robotId.isEmpty || tripId == null) {
+      if (robotId.isEmpty || tripStateDto.tripId.isEmpty) {
         print(
-          'MqttPayloadHandler: Missing robot ID or trip_id from payload: robotId=$robotId, trip_id=$tripId',
+          'MqttPayloadHandler: Missing robot ID or trip_id from payload: robotId=$robotId, trip_id=${tripStateDto.tripId}',
         );
         return;
       }
@@ -155,30 +178,32 @@ class MqttPayloadHandler {
       final isFromCache = data['fromCache'] == true;
 
       print(
-        'MqttPayloadHandler: Processing robot trip - Robot: $robotId, Trip: $tripId, Status: $status (${_getStatusName(status)}), Progress: $progress, FromCache: $isFromCache',
+        'MqttPayloadHandler: Processing robot trip - Robot: $robotId, Trip: ${tripStateDto.tripId}, Status: ${tripStateDto.status} (${tripStateDto.statusName}), Progress: ${tripStateDto.progress}, FromCache: $isFromCache',
       );
 
       // Persist trip progress (the _persistTripProgress method will check isFromCache again)
-      await _persistTripProgress(tripId, data);
+      await _persistTripProgress(tripStateDto.tripId, data);
 
       // Update robot state if applicable
-      if (_providerContainer != null && progress != null && status != null) {
+      if (_providerContainer != null) {
         // Create an enhanced payload with all needed information
         final enhancedPayload = {
           ...data,
           'robotId': robotId,
-          'tripCode': tripId, // For compatibility with existing code
-          'start_point': startPoint,
-          'end_point': endPoint,
+          'tripCode':
+              tripStateDto.tripId, // For compatibility with existing code
+          'start_point': tripStateDto.startPoint,
+          'end_point': tripStateDto.endPoint,
           // For compatibility with other processors
           'messageType': 'trip_progress',
         };
 
         // Generate status-based notifications
         await _generateTripProgressNotifications(
-          tripId,
-          progress,
-          status.toString(), // Convert int status to string for compatibility
+          tripStateDto.tripId,
+          tripStateDto.progress,
+          tripStateDto.status
+              .toString(), // Convert int status to string for compatibility
           enhancedPayload,
         );
       }
@@ -187,50 +212,101 @@ class MqttPayloadHandler {
     }
   }
 
-  /// Get human-readable status name
-  String _getStatusName(int? status) {
-    if (status == null) return 'Unknown';
-    switch (status) {
-      case 0:
-        return 'Prepare';
-      case 1:
-        return 'Load';
-      case 2:
-        return 'On Going';
-      case 3:
-        return 'Delivered';
-      case 4:
-        return 'Finish';
-      default:
-        return 'Unknown($status)';
+  /// Process robot trip state messages from topic: robot/{robotCode}/trip/state
+  /// Payload: {trip_id (tripCode), progress, status, start_point, end_point}
+  /// Specifically handles status 1 (QR verify first time) and status 4 (QR verify last time)
+  Future<void> _processRobotTripStateMessage(Map<String, dynamic> data) async {
+    try {
+      final topic = data['topic'] as String?;
+      if (topic == null) return;
+
+      // Extract robot code from topic (format: robot/{robotCode}/trip/state)
+      final topicParts = topic.split('/');
+      if (topicParts.length < 4 ||
+          topicParts[0] != 'robot' ||
+          topicParts[2] != 'trip' ||
+          topicParts[3] != 'state') {
+        print(
+          'MqttPayloadHandler: Invalid robot trip state topic format: $topic',
+        );
+        return;
+      }
+
+      final robotId = topicParts[1];
+
+      // Create trip state DTO from payload
+      final tripStateDto = TripStateMqttDto.fromJson(data);
+
+      if (robotId.isEmpty || tripStateDto.tripId.isEmpty) {
+        print(
+          'MqttPayloadHandler: Missing robot ID or trip_id from trip state payload: robotId=$robotId, trip_id=${tripStateDto.tripId}',
+        );
+        return;
+      }
+
+      // Check if this data is from cache (has the marker we added)
+      final isFromCache = data['fromCache'] == true;
+
+      print(
+        'MqttPayloadHandler: Processing robot trip state - Robot: $robotId, Trip: ${tripStateDto.tripId}, Status: ${tripStateDto.status} (${tripStateDto.statusName}), Progress: ${tripStateDto.progress}, FromCache: $isFromCache',
+      );
+
+      // Generate notifications for specific statuses (1 and 4)
+      await _generateNotificationsForTripState(
+        robotId,
+        tripStateDto.tripId,
+        tripStateDto.status,
+        tripStateDto.startPoint,
+        tripStateDto.endPoint,
+      );
+
+      // Update robot state if applicable and forward to UI
+      if (_providerContainer != null) {
+        // Create an enhanced payload with all needed information
+        final enhancedPayload = {
+          ...data,
+          'robotId': robotId,
+          'tripCode': tripStateDto.tripId,
+          'start_point': tripStateDto.startPoint,
+          'end_point': tripStateDto.endPoint,
+          'messageType': 'trip_state',
+        };
+
+        // Forward to original callback for UI updates if any
+        if (_originalCallback != null) {
+          _originalCallback!(enhancedPayload);
+        }
+      }
+
+      // Persist the trip state for possible app launch
+      await _persistPayload(topic, data);
+    } catch (e) {
+      print('MqttPayloadHandler: Error processing robot trip state message: $e');
     }
   }
 
-  /// Process robot location messages
+  /// Process robot location messages (payload will send roomCode)
+  /// Note: This is kept for compatibility but only handles notifications
+  /// Robot location updates should go through heartbeat/container messages
   Future<void> _processRobotLocationMessage(Map<String, dynamic> data) async {
     final robotId = data['robotId'] as String?;
     final location = data['location'] as String?;
+    final roomCode = data['roomCode'] as String?;
 
-    if (robotId == null || location == null) return;
+    if (robotId == null) return;
 
-    // Update robot location via provider
-    if (_providerContainer != null) {
-      try {
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotLocation(
-              robotId: robotId,
-              location: location,
-              coordinates: data['coordinates'],
-              payload: data,
-            );
-      } catch (e) {
-        print('MqttPayloadHandler: Error updating robot location: $e');
-      }
-    }
+    final locationInfo = location ?? roomCode ?? 'Unknown location';
+
+    print(
+      'MqttPayloadHandler: Robot location update - Robot: $robotId, Location: $locationInfo',
+    );
+
+    // Note: Robot provider doesn't have updateRobotLocation method
+    // Location updates should be handled through other means or the provider needs this method
   }
 
   /// Process robot battery messages
+  /// Note: Battery updates should be handled through heartbeat messages or require new provider method
   Future<void> _processRobotBatteryMessage(Map<String, dynamic> data) async {
     final robotId = data['robotId'] as String?;
     final batteryLevel = data['battery_level'] as num?;
@@ -241,64 +317,67 @@ class MqttPayloadHandler {
       'MqttPayloadHandler: Robot battery update - Robot: $robotId, Battery: $batteryLevel%',
     );
 
-    // Update robot status via provider with battery info
-    if (_providerContainer != null) {
-      try {
-        // Add battery info to the data
-        final enhancedData = {...data, 'messageType': 'battery'};
-
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotStatus(
-              robotId: robotId,
-              status: 'battery_update',
-              payload: enhancedData,
-            );
-      } catch (e) {
-        print('MqttPayloadHandler: Error updating robot battery: $e');
-      }
-    }
+    // Note: Robot provider doesn't have updateRobotStatus method
+    // Battery updates should be handled through other means or the provider needs this method
 
     // Generate low battery notifications if needed
     if (batteryLevel <= 20) {
       await NotificationService().showPhase2Notification(
         title: 'Robot Battery Low',
-        body: 'Robot $robotId battery is at ${batteryLevel}%',
+        body: 'Robot $robotId battery is at $batteryLevel%',
       );
     }
   }
 
-  /// Process robot container messages
+  /// Process robot container messages from topic: robot/{robotCode}/container
+  /// Payload: {isClosed: bool, status: string, weight: double}
   Future<void> _processRobotContainerMessage(Map<String, dynamic> data) async {
-    final robotId = data['robotId'] as String?;
-    final containerId = data['container_id'] as String?;
-    final containerStatus = data['status'] as String?;
+    try {
+      final topic = data['topic'] as String?;
+      if (topic == null) return;
 
-    if (robotId == null || containerId == null) return;
-
-    print(
-      'MqttPayloadHandler: Robot container update - Robot: $robotId, Container: $containerId, Status: $containerStatus',
-    );
-
-    // Update robot status via provider
-    if (_providerContainer != null) {
-      try {
-        final enhancedData = {
-          ...data,
-          'messageType': 'container',
-          'containerId': containerId,
-        };
-
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotStatus(
-              robotId: robotId,
-              status: containerStatus ?? 'container_update',
-              payload: enhancedData,
-            );
-      } catch (e) {
-        print('MqttPayloadHandler: Error updating robot container: $e');
+      // Extract robot code from topic (format: robot/{robotCode}/container)
+      final topicParts = topic.split('/');
+      if (topicParts.length < 3 ||
+          topicParts[0] != 'robot' ||
+          topicParts[2] != 'container') {
+        print(
+          'MqttPayloadHandler: Invalid robot container topic format: $topic',
+        );
+        return;
       }
+
+      final robotCode = topicParts[1];
+
+      // Create container DTO from payload
+      final containerDto = RobotContainerDto.fromJson(data);
+
+      // Extract container ID from data or generate one
+      final containerId = data['containerId'] as String? ?? 'container_1';
+
+      print(
+        'MqttPayloadHandler: Robot container update - Robot: $robotCode, Container: $containerId, Status: ${containerDto.status}, Closed: ${containerDto.isClosed}, Weight: ${containerDto.weight}',
+      );
+
+      // Update robot container via provider
+      if (_providerContainer != null) {
+        try {
+          _providerContainer!
+              .read(robotProvider.notifier)
+              .updateRobotContainer(robotCode, containerId, containerDto);
+        } catch (e) {
+          print('MqttPayloadHandler: Error updating robot container: $e');
+        }
+      }
+
+      // Generate notifications based on container status
+      await _generateContainerNotifications(
+        robotCode,
+        containerId,
+        containerDto,
+      );
+    } catch (e) {
+      print('MqttPayloadHandler: Error processing robot container message: $e');
     }
   }
 
@@ -347,23 +426,8 @@ class MqttPayloadHandler {
           'Robot $robotId has been moved${newLocation != null ? ' to $newLocation' : ''}${reason != null ? ' ($reason)' : ''}',
     );
 
-    // Update robot location if provided
-    if (_providerContainer != null && newLocation != null) {
-      try {
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotLocation(
-              robotId: robotId,
-              location: newLocation,
-              coordinates: data['coordinates'],
-              payload: data,
-            );
-      } catch (e) {
-        print(
-          'MqttPayloadHandler: Error updating robot location after force move: $e',
-        );
-      }
-    }
+    // Note: Robot provider doesn't have updateRobotLocation method
+    // Location updates should be handled through other means or the provider needs this method
   }
 
   /// Process robot warning messages
@@ -389,65 +453,8 @@ class MqttPayloadHandler {
       body: notificationBody,
     );
 
-    // Update robot status to reflect warning
-    if (_providerContainer != null) {
-      try {
-        final enhancedData = {
-          ...data,
-          'messageType': 'warning',
-          'warningType': warningType,
-          'severity': severity,
-        };
-
-        _providerContainer!
-            .read(robotProvider.notifier)
-            .updateRobotStatus(
-              robotId: robotId,
-              status: 'warning_$warningType',
-              payload: enhancedData,
-            );
-      } catch (e) {
-        print('MqttPayloadHandler: Error updating robot warning status: $e');
-      }
-    }
-  }
-
-  /// Generate notifications for robot status updates
-  Future<void> _generateRobotStatusNotifications(
-    String robotId,
-    String status,
-    Map<String, dynamic> data,
-  ) async {
-    // Check if we should send a notification for this status
-    if (status.toLowerCase() == 'arrived') {
-      final location = data['location'] as String?;
-
-      if (location != null) {
-        String notificationTitle = '';
-        String notificationBody = '';
-        bool shouldNotify = false;
-
-        if (location.toLowerCase().contains('pickup')) {
-          notificationTitle = 'Robot Arrived for Pickup';
-          notificationBody =
-              'Robot $robotId has arrived at pickup location. Please scan QR code to open container.';
-          shouldNotify = true;
-        } else if (location.toLowerCase().contains('delivery') ||
-            location.toLowerCase().contains('destination')) {
-          notificationTitle = 'Robot Arrived for Delivery';
-          notificationBody =
-              'Robot $robotId has arrived at delivery location. Please scan QR code to receive your package.';
-          shouldNotify = true;
-        }
-
-        if (shouldNotify) {
-          await NotificationService().showPhase1Notification(
-            title: notificationTitle,
-            body: notificationBody,
-          );
-        }
-      }
-    }
+    // Note: Robot provider doesn't have updateRobotStatus method
+    // Warning status updates should be handled through other means or the provider needs this method
   }
 
   /// Generate notifications for trip progress updates
@@ -569,6 +576,145 @@ class MqttPayloadHandler {
       }
     } catch (e) {
       print('MqttPayloadHandler: Error generating trip notifications: $e');
+    }
+  }
+
+  /// Generate notifications for trip state updates (robot/+/trip/state)
+  /// Specifically handles status 1 (QR verify first time) and status 4 (QR verify last time)
+  Future<void> _generateNotificationsForTripState(
+    String robotId,
+    String tripId,
+    int status,
+    String startPoint,
+    String endPoint,
+  ) async {
+    try {
+      // Get stored preferences to check what notifications we've already sent
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Use a global key to prevent duplicates across all notification sources
+      final notificationKey = 'global_trip_state_notified_${tripId}_$status';
+      final alreadyNotified = prefs.getBool(notificationKey) ?? false;
+
+      // Only send notification if we haven't already sent it for this trip and status
+      if (alreadyNotified) {
+        print(
+          'MqttPayloadHandler: Trip state notification already sent for trip $tripId status $status (deduplication)',
+        );
+        return;
+      }
+
+      // Additional check: store timestamp to prevent rapid duplicates
+      final timestampKey = 'global_trip_state_timestamp_${tripId}_$status';
+      final lastNotificationTime = prefs.getInt(timestampKey) ?? 0;
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      final timeSinceLastNotification = currentTime - lastNotificationTime;
+      
+      // Prevent notifications within 10 seconds of each other for same trip/status
+      if (timeSinceLastNotification < 10000) {
+        print(
+          'MqttPayloadHandler: Trip state notification rate-limited for trip $tripId status $status',
+        );
+        return;
+      }
+
+      // Handle specific statuses for QR code verification
+      switch (status) {
+        case 1: // QR verify first time (scan QR for loading items)
+          final notificationTitle = 'QR Code Required - Loading';
+          final notificationBody =
+              'Please scan QR code at ${startPoint.isNotEmpty ? startPoint : 'pickup location'} to load your items into Robot $robotId.';
+          
+          await NotificationService().showPhase1Notification(
+            title: notificationTitle,
+            body: notificationBody,
+          );
+          
+          // Mark this notification as sent with timestamp
+          await prefs.setBool(notificationKey, true);
+          await prefs.setInt(timestampKey, currentTime);
+          
+          print(
+            'MqttPayloadHandler: Trip state notification sent - $notificationTitle (Trip: $tripId, Status: $status)',
+          );
+          break;
+        case 4: // QR verify last time (scan QR for unloading items)
+          final notificationTitle = 'QR Code Required - Delivery';
+          final notificationBody =
+              'Please scan QR code at ${endPoint.isNotEmpty ? endPoint : 'delivery location'} to collect your items from Robot $robotId.';
+          
+          await NotificationService().showPhase2Notification(
+            title: notificationTitle,
+            body: notificationBody,
+          );
+          
+          // Mark this notification as sent with timestamp
+          await prefs.setBool(notificationKey, true);
+          await prefs.setInt(timestampKey, currentTime);
+          
+          print(
+            'MqttPayloadHandler: Trip state notification sent - $notificationTitle (Trip: $tripId, Status: $status)',
+          );
+          break;
+        default:
+          // No notifications for other statuses from trip/state topic
+          print(
+            'MqttPayloadHandler: Trip state status $status does not require notification',
+          );
+          return;
+      }
+    } catch (e) {
+      print('MqttPayloadHandler: Error generating trip state notifications: $e');
+    }
+  }
+
+  /// Clear notification flags for a completed trip to allow future notifications
+  Future<void> clearTripNotificationFlags(String tripId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Clear all status flags for this trip
+      for (int status = 1; status <= 4; status++) {
+        final notificationKey = 'global_trip_state_notified_${tripId}_$status';
+        final timestampKey = 'global_trip_state_timestamp_${tripId}_$status';
+        
+        await prefs.remove(notificationKey);
+        await prefs.remove(timestampKey);
+      }
+      
+      print('MqttPayloadHandler: Cleared notification flags for completed trip $tripId');
+    } catch (e) {
+      print('MqttPayloadHandler: Error clearing trip notification flags: $e');
+    }
+  }
+
+  /// Generate notifications for container updates
+  Future<void> _generateContainerNotifications(
+    String robotCode,
+    String containerId,
+    RobotContainerDto containerDto,
+  ) async {
+    try {
+      // Notify when container is opened (becomes available)
+      if (containerDto.status == 'free' && !containerDto.isClosed) {
+        await NotificationService().showPhase1Notification(
+          title: 'Container Available',
+          body:
+              'Robot $robotCode container $containerId is now available for loading',
+        );
+      }
+      // Notify when container is closed and occupied
+      else if (containerDto.status != 'free' &&
+          containerDto.isClosed &&
+          containerDto.weight > 0) {
+        await NotificationService().showPhase2Notification(
+          title: 'Container Loaded',
+          body:
+              'Robot $robotCode container $containerId has been loaded (${containerDto.weight}kg)',
+        );
+      }
+    } catch (e) {
+      print('MqttPayloadHandler: Error generating container notifications: $e');
     }
   }
 
@@ -833,9 +979,13 @@ class MqttPayloadHandler {
           };
 
           // Re-process each message based on topic type
-          if (topic.contains('robot') && topic.contains('status')) {
-            await _processRobotStatusMessage(markedMessage);
-          } else if (topic.contains('robot') && topic.contains('trip')) {
+          if (topic.contains('robot') && topic.contains('heartbeat')) {
+            await _processRobotHeartbeatMessage(markedMessage);
+          } else if (topic.contains('robot') && topic.contains('container')) {
+            await _processRobotContainerMessage(markedMessage);
+          } else if (topic.contains('robot') && topic.contains('trip/state')) {
+            await _processRobotTripStateMessage(markedMessage);
+          } else if (topic.contains('robot') && topic.contains('trip') && !topic.contains('trip/state')) {
             await _processRobotTripMessage(markedMessage);
           } else if (topic.contains('robot') && topic.contains('location')) {
             await _processRobotLocationMessage(markedMessage);

@@ -244,6 +244,8 @@
     "order_creation_failed": "Không thể tạo đơn hàng",
     "order_network_error": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.",
     "order_id": "Mã đơn hàng",
+    "order_code": "Mã đơn hàng",
+    "order_price": "Giá",
     "estimated_delivery": "Thời gian giao hàng dự kiến",
     "order_status": "Trạng thái",
     "product_label": "Sản phẩm",
@@ -257,6 +259,12 @@
     "status_active": "Đang hoạt động",
     "status_completed": "Đã hoàn thành",
     "status_cancelled": "Đã hủy",
+    "status_queued": "Đang xếp hàng",
+    "status_explanation_pending": "Đơn hàng của bạn đang được chuẩn bị và sẽ sớm được giao cho robot.",
+    "status_explanation_active": "Đơn hàng của bạn đang được giao! Robot đang trên đường đến địa điểm của bạn.",
+    "status_explanation_completed": "Đơn hàng của bạn đã được giao thành công.",
+    "status_explanation_cancelled": "Đơn hàng này đã bị hủy.",
+    "status_explanation_queued": "Đơn hàng của bạn đang trong hàng đợi. Robot đang bận hoặc offline, nhưng sẽ bắt đầu giao hàng khi có thể.",
     "success_title": "Đặt chuyến thành công!",
     "success_message": "Đơn hàng của bạn đã được đặt thành công. Bạn có thể theo dõi giao hàng trong mục Đơn hàng.",
     "order_details_title": "Chi tiết đơn hàng",
@@ -284,6 +292,17 @@
     "view_progress": "Xem tiến trình",
     "receive_order": "Nhận hàng",
     "pay_order": "Thanh toán",
+    "cancel_order": "Hủy đơn hàng",
+    "cancel": {
+      "title": "Hủy đơn hàng",
+      "message": "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.",
+      "confirm": "Đồng ý, Hủy",
+      "cancel": "Giữ đơn hàng",
+      "success_title": "Đã hủy đơn hàng",
+      "success_message": "Đơn hàng của bạn đã được hủy thành công.",
+      "error_title": "Hủy đơn hàng thất bại",
+      "error_message": "Không thể hủy đơn hàng. Vui lòng thử lại hoặc liên hệ hỗ trợ."
+    },
     "payment": {
       "title": "Xác nhận thanh toán",
       "message": "Tiến hành thanh toán cho đơn hàng:",
@@ -375,7 +394,8 @@
       "cancelled": "Đã hủy",
       "in_transit": "Đang vận chuyển",
       "delivered": "Đã đến nơi",
-      "paid": "Đã thanh toán"
+      "paid": "Đã thanh toán",
+      "queued": "Đang xếp hàng"
     },
     "common":{
       "ok": "OK"

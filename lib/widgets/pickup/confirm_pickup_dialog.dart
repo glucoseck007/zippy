@@ -7,12 +7,14 @@ import 'package:zippy/widgets/pickup/otp_verification_dialog.dart';
 class ConfirmPickupDialog extends StatefulWidget {
   final String orderCode;
   final String tripCode;
+  final String robotCode;
   final VoidCallback onSuccess;
 
   const ConfirmPickupDialog({
     super.key,
     required this.orderCode,
     required this.tripCode,
+    required this.robotCode,
     required this.onSuccess,
   });
 
@@ -102,6 +104,7 @@ class _ConfirmPickupDialogState extends State<ConfirmPickupDialog> {
         return OTPVerificationDialog(
           orderCode: widget.orderCode,
           tripCode: widget.tripCode,
+          robotCode: widget.robotCode,
           onSuccess: widget.onSuccess,
         );
       },

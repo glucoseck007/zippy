@@ -3,20 +3,16 @@ class OrderRequest {
   final String receiverIdentifier; // Can be email or phone
   final String productName;
   final String robotCode;
-  final String robotContainerCode;
   final String startPoint;
-  final String endpoint;
-  final bool approved;
+  final String endPoint;
 
   const OrderRequest({
     required this.senderIdentifier,
     required this.receiverIdentifier,
     required this.productName,
     required this.robotCode,
-    required this.robotContainerCode,
     required this.startPoint,
-    required this.endpoint,
-    this.approved = false,
+    required this.endPoint,
   });
 
   Map<String, dynamic> toJson() {
@@ -25,10 +21,8 @@ class OrderRequest {
       'receiverIdentifier': receiverIdentifier,
       'productName': productName,
       'robotCode': robotCode,
-      'robotContainerCode': robotContainerCode,
       'startPoint': startPoint,
-      'endpoint': endpoint,
-      'approved': approved,
+      'endPoint': endPoint,
     };
   }
 
@@ -38,16 +32,14 @@ class OrderRequest {
       receiverIdentifier: json['receiverIdentifier'] as String,
       productName: json['productName'] as String,
       robotCode: json['robotCode'] as String,
-      robotContainerCode: json['robotContainerCode'] as String,
       startPoint: json['startPoint'] as String,
-      endpoint: json['endpoint'] as String,
-      approved: json['approved'] as bool? ?? false,
+      endPoint: json['endPoint'] as String,
     );
   }
 
   @override
   String toString() {
-    return 'OrderRequest(senderIdentifier: $senderIdentifier, receiverIdentifier: $receiverIdentifier, productName: $productName, robotCode: $robotCode, robotContainerCode: $robotContainerCode, startPoint: $startPoint, endpoint: $endpoint, approved: $approved)';
+    return 'OrderRequest(senderIdentifier: $senderIdentifier, receiverIdentifier: $receiverIdentifier, productName: $productName, robotCode: $robotCode, startPoint: $startPoint, endPoint: $endPoint)';
   }
 
   @override
@@ -58,10 +50,8 @@ class OrderRequest {
         other.receiverIdentifier == receiverIdentifier &&
         other.productName == productName &&
         other.robotCode == robotCode &&
-        other.robotContainerCode == robotContainerCode &&
         other.startPoint == startPoint &&
-        other.endpoint == endpoint &&
-        other.approved == approved;
+        other.endPoint == endPoint;
   }
 
   @override
@@ -71,10 +61,8 @@ class OrderRequest {
       receiverIdentifier,
       productName,
       robotCode,
-      robotContainerCode,
       startPoint,
-      endpoint,
-      approved,
+      endPoint,
     );
   }
 }

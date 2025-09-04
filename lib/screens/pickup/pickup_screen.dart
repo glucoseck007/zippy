@@ -87,6 +87,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
     switch (status.toLowerCase()) {
       case 'pending':
         return tr('pickup.status.pending');
+      case 'queued':
+        return tr('pickup.status.queued');
       case 'approved':
         return tr('pickup.status.approved');
       case 'active':
@@ -131,6 +133,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
+      case 'queued':
         return Icons.schedule;
       case 'active':
       case 'in_progress':
@@ -250,6 +253,211 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
     );
   }
 
+  void _handleCancelOrder(OrderListItem order) {
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            tr('pickup.cancel.title'),
+            style: isDarkMode
+                ? AppTypography.dmHeading(context)
+                : AppTypography.heading(context),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.warning, size: 60, color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                tr('pickup.cancel.message'),
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                tr('pickup.cancel.cancel'),
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(
+                        context,
+                      ).copyWith(color: Colors.grey)
+                    : AppTypography.bodyText(
+                        context,
+                      ).copyWith(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _processCancelOrder(order);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(tr('pickup.cancel.confirm')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _processCancelOrder(OrderListItem order) async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // First, get the trip code for this order
+      final tripResponse = await TripService.getTripByOrderCode(
+        order.orderCode,
+      );
+
+      if (tripResponse != null &&
+          tripResponse.success &&
+          tripResponse.data != null) {
+        // Cancel the trip using the trip code
+        final cancelResponse = await TripService.cancelTrip(
+          tripResponse.data!.tripCode,
+        );
+
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+
+          if (cancelResponse != null && cancelResponse.success) {
+            // Show success dialog
+            _showCancelSuccessDialog();
+          } else {
+            // Show error dialog
+            _showCancelErrorDialog(
+              cancelResponse?.message ?? tr('pickup.cancel.error_message'),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+          _showCancelErrorDialog(
+            'Failed to retrieve trip information for cancellation',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        _showCancelErrorDialog(tr('pickup.cancel.error_message'));
+      }
+    }
+  }
+
+  void _showCancelSuccessDialog() {
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            tr('pickup.cancel.success_title'),
+            style: isDarkMode
+                ? AppTypography.dmHeading(context)
+                : AppTypography.heading(context),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, size: 60, color: Colors.green),
+              const SizedBox(height: 16),
+              Text(
+                tr('pickup.cancel.success_message'),
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _loadOrders(); // Refresh orders after cancellation
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(tr('pickup.common.ok')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCancelErrorDialog(String message) {
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+        title: Text(
+          tr('pickup.cancel.error_title'),
+          style: isDarkMode
+              ? AppTypography.dmHeading(context)
+              : AppTypography.heading(context),
+        ),
+        content: Text(
+          message,
+          style: isDarkMode
+              ? AppTypography.dmBodyText(context)
+              : AppTypography.bodyText(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              tr('pickup.common.ok'),
+              style: isDarkMode
+                  ? AppTypography.dmBodyText(
+                      context,
+                    ).copyWith(color: AppColors.dmButtonColor)
+                  : AppTypography.bodyText(
+                      context,
+                    ).copyWith(color: AppColors.buttonColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onQRCodeScanned(OrderListItem order, String qrCode) {
     // Parse QR code to extract tripCode
     String tripCode = '';
@@ -268,6 +476,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
         return ConfirmPickupDialog(
           orderCode: order.orderCode,
           tripCode: tripCode,
+          robotCode: order.robotCode,
           onSuccess: () {
             _loadOrders(); // Refresh the orders list
           },
@@ -753,71 +962,180 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
 
             const SizedBox(height: 16),
 
-            // Action button (View Progress, Receive Order, Pay, or hidden for paid orders)
-            if (order.status.toLowerCase() !=
-                'paid') // Only show button if not paid
-              SizedBox(
-                width: double.infinity,
-                child: order.status.toLowerCase() == 'pending'
-                    ? ElevatedButton.icon(
-                        onPressed: null, // Disabled button
-                        icon: const Icon(Icons.schedule, size: 18),
-                        label: Text(tr('pickup.status.pending')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      )
-                    : order.status.toLowerCase() == 'delivered'
-                    ? ElevatedButton.icon(
-                        onPressed: () => _handleReceiveOrder(order),
-                        icon: const Icon(Icons.qr_code_scanner, size: 18),
-                        label: Text(tr('pickup.receive_order')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      )
-                    : order.status.toLowerCase() == 'finished' ||
-                          order.status.toLowerCase() == 'completed'
-                    ? ElevatedButton.icon(
-                        onPressed: () => _handlePayOrder(order),
-                        icon: const Icon(Icons.payment, size: 18),
-                        label: Text(tr('pickup.pay_order')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.yellow[700],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      )
-                    : ElevatedButton.icon(
-                        onPressed: () => _showTripProgress(order),
-                        icon: const Icon(Icons.timeline, size: 18),
-                        label: Text(tr('pickup.view_progress')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.buttonColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-              ),
+            // Action buttons (View Progress, Receive Order, Pay, Cancel, or hidden for paid/cancelled orders)
+            if (order.status.toLowerCase() != 'paid' &&
+                order.status.toLowerCase() !=
+                    'cancelled') // Only show buttons if not paid or cancelled
+              _buildActionButtons(order, isDarkMode),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildActionButtons(OrderListItem order, bool isDarkMode) {
+    // Determine if order can be cancelled (not delivered, completed, finished, or cancelled)
+    final canCancel = ![
+      'delivered',
+      'completed',
+      'finished',
+      'cancelled',
+      'paid',
+    ].contains(order.status.toLowerCase());
+
+    // For pending orders - show disabled button and cancel option
+    if (order.status.toLowerCase() == 'pending') {
+      return canCancel
+          ? Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: null, // Disabled button
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: Text(tr('pickup.status.pending')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleCancelOrder(order),
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: Text(tr('pickup.cancel_order')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: null, // Disabled button
+                icon: const Icon(Icons.schedule, size: 18),
+                label: Text(tr('pickup.status.pending')),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            );
+    }
+
+    // For delivered orders - show receive button
+    if (order.status.toLowerCase() == 'delivered') {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => _handleReceiveOrder(order),
+          icon: const Icon(Icons.qr_code_scanner, size: 18),
+          label: Text(tr('pickup.receive_order')),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // For finished/completed orders - show pay button
+    if (order.status.toLowerCase() == 'finished' ||
+        order.status.toLowerCase() == 'completed') {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => _handlePayOrder(order),
+          icon: const Icon(Icons.payment, size: 18),
+          label: Text(tr('pickup.pay_order')),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.yellow[700],
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // For other active orders - show view progress and cancel (if applicable)
+    return canCancel
+        ? Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showTripProgress(order),
+                  icon: const Icon(Icons.timeline, size: 18),
+                  label: Text(tr('pickup.view_progress')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.buttonColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _handleCancelOrder(order),
+                  icon: const Icon(Icons.cancel, size: 18),
+                  label: Text(tr('pickup.cancel_order')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showTripProgress(order),
+              icon: const Icon(Icons.timeline, size: 18),
+              label: Text(tr('pickup.view_progress')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.buttonColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          );
   }
 }

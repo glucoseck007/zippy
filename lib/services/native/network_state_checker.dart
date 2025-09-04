@@ -58,8 +58,8 @@ class NetworkStateChecker {
       }
 
       // Check MQTT broker specifically
-      const mqttHost = '36.50.135.207';
-      const mqttPort = 1883;
+      const mqttHost = '192.168.0.191';
+      const mqttPort = 21213;
 
       final brokerReachable = await isMqttBrokerReachable(mqttHost, mqttPort);
 

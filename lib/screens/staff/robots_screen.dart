@@ -6,6 +6,7 @@ import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/providers/robot/robot_provider.dart';
 import 'package:zippy/models/entity/robot/robot.dart' as RobotModel;
+import 'package:zippy/models/entity/robot/container.dart' as RobotContainer;
 
 class RobotsScreen extends ConsumerStatefulWidget {
   const RobotsScreen({super.key});
@@ -260,13 +261,13 @@ class _RobotsScreenState extends ConsumerState<RobotsScreen> {
     switch (_selectedFilter) {
       case 'Online':
         return robots
-            .where((robot) => robot.online && robot.status == 'free')
+            .where((robot) => robot.isOnline && robot.currentStatus == 'free')
             .toList();
       case 'Offline':
-        return robots.where((robot) => !robot.online).toList();
+        return robots.where((robot) => !robot.isOnline).toList();
       case 'Busy':
         return robots
-            .where((robot) => robot.online && robot.status != 'free')
+            .where((robot) => robot.isOnline && robot.currentStatus != 'free')
             .toList();
       default: // 'All'
         return robots;
@@ -281,10 +282,10 @@ class _RobotsScreenState extends ConsumerState<RobotsScreen> {
     String displayStatus;
     Color statusColor;
 
-    if (!robot.online) {
+    if (!robot.isOnline) {
       displayStatus = 'Offline';
       statusColor = Colors.red;
-    } else if (robot.status == 'free') {
+    } else if (robot.currentStatus == 'free') {
       displayStatus = 'Online';
       statusColor = Colors.green;
     } else {
@@ -293,8 +294,8 @@ class _RobotsScreenState extends ConsumerState<RobotsScreen> {
     }
 
     // Get container stats
-    final totalContainers = robot.freeContainers.length;
-    final availableContainers = robot.freeContainers
+    final totalContainers = robot.containers.length;
+    final availableContainers = robot.containers
         .where((c) => c.isAvailable)
         .length;
 
@@ -413,7 +414,7 @@ class _RobotsScreenState extends ConsumerState<RobotsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ...robot.freeContainers.map(
+            ...robot.containers.map(
               (container) => _buildContainerRow(container, isDarkMode),
             ),
           ] else ...[
@@ -445,7 +446,10 @@ class _RobotsScreenState extends ConsumerState<RobotsScreen> {
     );
   }
 
-  Widget _buildContainerRow(RobotModel.Container container, bool isDarkMode) {
+  Widget _buildContainerRow(
+    RobotContainer.Container container,
+    bool isDarkMode,
+  ) {
     final isAvailable = container.isAvailable;
     final statusColor = isAvailable ? Colors.green : Colors.red;
     final statusText = isAvailable

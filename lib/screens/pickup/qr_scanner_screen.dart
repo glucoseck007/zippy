@@ -138,16 +138,25 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     Map<String, dynamic>? parsedData;
     String orderCode = '';
     String tripCode = '';
+    String robotCode = '';
     String timestamp = '';
 
     try {
       parsedData = jsonDecode(qrData);
       orderCode = parsedData?['orderCode'] ?? '';
       tripCode = parsedData?['tripCode'] ?? '';
+      robotCode = parsedData?['robotCode'] ?? '';
       timestamp = parsedData?['timestamp'] ?? '';
+
+      print(
+        'QRScanner: Parsed QR data - orderCode: $orderCode, tripCode: $tripCode, robotCode: $robotCode',
+      );
     } catch (e) {
       // If JSON parsing fails, treat the entire string as order code
       orderCode = qrData;
+      print(
+        'QRScanner: Failed to parse QR JSON, using as orderCode: $orderCode',
+      );
     }
 
     final themeState = ref.read(themeProvider);
@@ -293,6 +302,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                 _showOTPDialog(
                   orderCode.isNotEmpty ? orderCode : qrData,
                   tripCode,
+                  robotCode,
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -321,7 +331,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     }
   }
 
-  void _showOTPDialog(String orderCode, String tripCode) {
+  void _showOTPDialog(String orderCode, String tripCode, String robotCode) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -329,6 +339,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
         return OTPVerificationDialog(
           orderCode: orderCode,
           tripCode: tripCode,
+          robotCode: robotCode,
           onSuccess: () {
             // Handle successful OTP verification
             // The success dialog will be shown and closed by the OTP dialog

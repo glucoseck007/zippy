@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../notification/notification_service.dart';
 
 /// MQTT service for handling real-time robot status updates
@@ -113,6 +114,7 @@ class MqttService {
     const robotStatusTopic = 'robot/+/status';
     const containerStatusTopic = 'robot/+/container';
     const tripTopic = 'robot/+/trip';
+    const tripStateTopic = 'robot/+/trip/state';
     const qrCodeTopic = 'robot/+/qr-code';
     const forcMoveTopic = 'robot/+/force_move';
     const warningTopic = 'robot/+/warning';
@@ -123,6 +125,7 @@ class MqttService {
       robotStatusTopic,
       containerStatusTopic,
       tripTopic,
+      tripStateTopic,
       qrCodeTopic,
       forcMoveTopic,
       warningTopic,
@@ -134,6 +137,7 @@ class MqttService {
     print('  - Robot status: $robotStatusTopic');
     print('  - Container status: $containerStatusTopic');
     print('  - Trip progress: $tripTopic');
+    print('  - Trip state: $tripStateTopic');
     print('  - QR code: $qrCodeTopic');
     print('  - Force move: $forcMoveTopic');
     print('  - Warning: $warningTopic');
@@ -179,6 +183,10 @@ class MqttService {
             }
             data['messageType'] = 'container_status';
             data['isContainerStatus'] = true;
+          } else if (topicParts.length >= 4 && topicParts[2] == 'trip' && topicParts[3] == 'state') {
+            // robot/{robotId}/trip/state - New trip state topic
+            data['messageType'] = 'trip_state';
+            data['isTripState'] = true;
           } else if (topicParts.length == 3) {
             // robot/{robotId}/{type}
             final messageType = topicParts[2];
@@ -420,8 +428,8 @@ class MqttService {
 
     // Try to reinitialize with last known good config
     return await initialize(
-      brokerHost: '36.50.135.207', // MQTT broker host
-      brokerPort: 1883,
+      brokerHost: '192.168.0.191', // MQTT broker host
+      brokerPort: 21213,
       username: 'admin',
       password: '123@123',
     );
@@ -436,9 +444,9 @@ class MqttService {
       final testClientId =
           'zippy_test_${DateTime.now().millisecondsSinceEpoch}';
       final testClient = MqttServerClient.withPort(
-        '36.50.135.207', // MQTT broker host
+        '192.168.0.191', // MQTT broker host
         testClientId,
-        1883,
+        21213,
       );
 
       testClient.logging(on: true);
@@ -500,6 +508,9 @@ class MqttService {
           break;
         case 'trip_progress':
           await _processTripProgressNotification(data, robotId);
+          break;
+        case 'trip_state':
+          await _processTripStateNotification(data, robotId);
           break;
         case 'qr_code':
           await _processQrCodeNotification(data, robotId);
@@ -671,7 +682,128 @@ class MqttService {
     }
   }
 
-  /// Process QR code notifications
+  /// Process trip state notifications (from robot/+/trip/state topic)
+  /// Specifically handles status 1 (QR verify first time) and status 4 (QR verify last time)
+  static Future<void> _processTripStateNotification(
+    Map<String, dynamic> data,
+    String? robotId,
+  ) async {
+    final tripId = data['trip_id'] as String?;
+    final status = data['status'] as int?;
+    final progress = data['progress'] as num?;
+    final startPoint = data['start_point'] as String?;
+    final endPoint = data['end_point'] as String?;
+
+    if (robotId == null || tripId == null || status == null) {
+      print('MqttService: Trip state notification missing required data');
+      return;
+    }
+
+    print(
+      'MqttService: Processing trip state - Robot: $robotId, Trip: $tripId, Status: $status, Progress: $progress',
+    );
+
+    // Import SharedPreferences for deduplication
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Use the same global key as payload handler to prevent duplicates
+      final notificationKey = 'global_trip_state_notified_${tripId}_$status';
+      final alreadyNotified = prefs.getBool(notificationKey) ?? false;
+
+      // Only send notification if we haven't already sent it for this trip and status
+      if (alreadyNotified) {
+        print(
+          'MqttService: Trip state notification already sent for trip $tripId status $status (deduplication)',
+        );
+        return;
+      }
+
+      // Additional timestamp check for rate limiting
+      final timestampKey = 'global_trip_state_timestamp_${tripId}_$status';
+      final lastNotificationTime = prefs.getInt(timestampKey) ?? 0;
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      final timeSinceLastNotification = currentTime - lastNotificationTime;
+      
+      // Prevent notifications within 10 seconds of each other
+      if (timeSinceLastNotification < 10000) {
+        print(
+          'MqttService: Trip state notification rate-limited for trip $tripId status $status',
+        );
+        return;
+      }
+
+      // Handle specific statuses for QR code verification
+      switch (status) {
+        case 1: // QR verify first time (scan QR for loading items)
+          final notificationTitle = 'QR Code Required - Loading';
+          final notificationBody =
+              'Please scan QR code at ${startPoint ?? 'pickup location'} to load your items into Robot $robotId.';
+          
+          await NotificationService().showPhase1Notification(
+            title: notificationTitle,
+            body: notificationBody,
+          );
+          
+          // Mark this notification as sent with timestamp
+          await prefs.setBool(notificationKey, true);
+          await prefs.setInt(timestampKey, currentTime);
+          
+          print(
+            'MqttService: Trip state notification sent - $notificationTitle (Status: $status)',
+          );
+          break;
+        case 4: // QR verify last time (scan QR for unloading items)
+          final notificationTitle = 'QR Code Required - Delivery';
+          final notificationBody =
+              'Please scan QR code at ${endPoint ?? 'delivery location'} to collect your items from Robot $robotId.';
+          
+          await NotificationService().showPhase2Notification(
+            title: notificationTitle,
+            body: notificationBody,
+          );
+          
+          // Mark this notification as sent with timestamp
+          await prefs.setBool(notificationKey, true);
+          await prefs.setInt(timestampKey, currentTime);
+          
+          print(
+            'MqttService: Trip state notification sent - $notificationTitle (Status: $status)',
+          );
+          break;
+        default:
+          // No notifications for other statuses from trip/state topic
+          print(
+            'MqttService: Trip state status $status does not require notification',
+          );
+          return;
+      }
+    } catch (e) {
+      print('MqttService: Error processing trip state notification: $e');
+    }
+  }
+
+  /// Clear notification flags for a completed trip
+  static Future<void> clearTripNotificationFlags(String tripId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Clear all status flags for this trip
+      for (int status = 1; status <= 4; status++) {
+        final notificationKey = 'global_trip_state_notified_${tripId}_$status';
+        final timestampKey = 'global_trip_state_timestamp_${tripId}_$status';
+        
+        await prefs.remove(notificationKey);
+        await prefs.remove(timestampKey);
+      }
+      
+      print('MqttService: Cleared notification flags for completed trip $tripId');
+    } catch (e) {
+      print('MqttService: Error clearing trip notification flags: $e');
+    }
+  }
+
+  /// QR code notifications
   static Future<void> _processQrCodeNotification(
     Map<String, dynamic> data,
     String? robotId,

@@ -26,6 +26,7 @@ Map<String, dynamic> _$$PickupResponseImplToJson(
 _$PickupDataImpl _$$PickupDataImplFromJson(Map<String, dynamic> json) =>
     _$PickupDataImpl(
       orderCode: json['orderCode'] as String,
+      tripCode: json['tripCode'] as String?,
       status: json['status'] as String,
       otpSentTo: json['otpSentTo'] as String?,
       completedAt: json['completedAt'] as String?,
@@ -34,6 +35,7 @@ _$PickupDataImpl _$$PickupDataImplFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$$PickupDataImplToJson(_$PickupDataImpl instance) =>
     <String, dynamic>{
       'orderCode': instance.orderCode,
+      'tripCode': instance.tripCode,
       'status': instance.status,
       'otpSentTo': instance.otpSentTo,
       'completedAt': instance.completedAt,

@@ -1,80 +1,104 @@
-class Robot {
-  final String robotCode;
-  final bool online;
-  final String status;
-  final List<Container> freeContainers;
-  final int totalFreeContainers;
+import 'package:zippy/models/entity/robot/container.dart';
 
-  // Additional fields for UI display (can be populated from other sources)
+class Robot {
+  final String code;
+  final String batteryStatus;
+  final String locationRealtime;
+
+  // MQTT state fields
+  final bool? isAlive; // from heartbeat
+  final String? lastHeartbeat; // timestamp from heartbeat
+  final List<Container> containers; // from container messages
+
+  // Additional fields for UI display
   final String? name;
   final int? batteryLevel;
-  final String? currentLocation;
+  final String? status;
+  final bool? online;
   final String? estimatedArrival;
 
   const Robot({
-    required this.robotCode,
-    required this.online,
-    required this.status,
-    required this.freeContainers,
-    required this.totalFreeContainers,
+    required this.code,
+    required this.batteryStatus,
+    required this.locationRealtime,
+    this.isAlive,
+    this.lastHeartbeat,
+    this.containers = const [],
     this.name,
     this.batteryLevel,
-    this.currentLocation,
+    this.status,
+    this.online,
     this.estimatedArrival,
   });
 
   factory Robot.fromJson(Map<String, dynamic> json) {
+    // Parse batteryStatus as either double or string
+    final rawBatteryStatus = json['batteryStatus'];
+    final batteryLevel = rawBatteryStatus is num
+        ? rawBatteryStatus.round()
+        : (rawBatteryStatus != null
+              ? int.tryParse(rawBatteryStatus.toString())
+              : null);
+
     return Robot(
-      robotCode: json['robotCode'] ?? '',
-      online: json['online'] ?? false,
-      status: json['status'] ?? '',
-      freeContainers:
-          (json['freeContainers'] as List<dynamic>?)
+      code: json['code'] ?? '',
+      batteryStatus: json['batteryStatus']?.toString() ?? '',
+      locationRealtime: json['locationRealtime'] ?? '',
+      isAlive: json['isAlive'],
+      lastHeartbeat: json['lastHeartbeat'],
+      containers:
+          (json['containers'] as List<dynamic>?)
               ?.map((container) => Container.fromJson(container))
               .toList() ??
           [],
-      totalFreeContainers: json['totalFreeContainers'] ?? 0,
       name: json['name'],
-      batteryLevel: json['batteryLevel'],
-      currentLocation: json['currentLocation'],
+      batteryLevel: batteryLevel ?? json['batteryLevel'],
+      status: json['status'],
+      online: json['online'],
       estimatedArrival: json['estimatedArrival'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'robotCode': robotCode,
-      'online': online,
-      'status': status,
-      'freeContainers': freeContainers.map((c) => c.toJson()).toList(),
-      'totalFreeContainers': totalFreeContainers,
+      'code': code,
+      'batteryStatus': batteryStatus,
+      'locationRealtime': locationRealtime,
+      if (isAlive != null) 'isAlive': isAlive,
+      if (lastHeartbeat != null) 'lastHeartbeat': lastHeartbeat,
+      'containers': containers.map((c) => c.toJson()).toList(),
       if (name != null) 'name': name,
       if (batteryLevel != null) 'batteryLevel': batteryLevel,
-      if (currentLocation != null) 'currentLocation': currentLocation,
+      if (status != null) 'status': status,
+      if (online != null) 'online': online,
       if (estimatedArrival != null) 'estimatedArrival': estimatedArrival,
     };
   }
 
   Robot copyWith({
-    String? robotCode,
-    bool? online,
-    String? status,
-    List<Container>? freeContainers,
-    int? totalFreeContainers,
+    String? code,
+    String? batteryStatus,
+    String? locationRealtime,
+    bool? isAlive,
+    String? lastHeartbeat,
+    List<Container>? containers,
     String? name,
     int? batteryLevel,
-    String? currentLocation,
+    String? status,
+    bool? online,
     String? estimatedArrival,
   }) {
     return Robot(
-      robotCode: robotCode ?? this.robotCode,
-      online: online ?? this.online,
-      status: status ?? this.status,
-      freeContainers: freeContainers ?? this.freeContainers,
-      totalFreeContainers: totalFreeContainers ?? this.totalFreeContainers,
+      code: code ?? this.code,
+      batteryStatus: batteryStatus ?? this.batteryStatus,
+      locationRealtime: locationRealtime ?? this.locationRealtime,
+      isAlive: isAlive ?? this.isAlive,
+      lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
+      containers: containers ?? this.containers,
       name: name ?? this.name,
       batteryLevel: batteryLevel ?? this.batteryLevel,
-      currentLocation: currentLocation ?? this.currentLocation,
+      status: status ?? this.status,
+      online: online ?? this.online,
       estimatedArrival: estimatedArrival ?? this.estimatedArrival,
     );
   }
@@ -84,111 +108,60 @@ class Robot {
     if (name != null && name!.isNotEmpty) {
       return name!;
     }
-    // Generate friendly name from robot code
-    final codeNumber = robotCode.replaceAll('ROBOT-', '');
-    return 'Zippy Bot ${_getAlphabetName(codeNumber)}';
+    // Generate friendly name from robot code (e.g., ROBOT001 -> Zippy Bot 1)
+    final numericPart = _extractNumericFromCode(code);
+    return 'Zippy Bot $numericPart';
   }
 
-  // Helper method to convert number to alphabet name
-  String _getAlphabetName(String codeNumber) {
+  // Helper method to get robot code (for backward compatibility)
+  String get robotCode => code;
+
+  // Helper method to get current location (for backward compatibility)
+  String? get currentLocation => locationRealtime;
+
+  // Check if robot is available for booking (all robots from /api/robots can be booked)
+  bool get isAvailable => true;
+
+  // Determine if robot is online based on MQTT heartbeat or fallback to online field
+  bool get isOnline => isAlive ?? online ?? false;
+
+  // Get free containers
+  List<Container> get freeContainers =>
+      containers.where((c) => c.isAvailable).toList();
+
+  // Get total free containers count (for backward compatibility)
+  int get totalFreeContainers => freeContainers.length;
+
+  // Get occupied containers
+  List<Container> get occupiedContainers =>
+      containers.where((c) => c.isOccupied).toList();
+
+  // Determine robot status based on various factors
+  String get currentStatus {
+    if (!isOnline) return 'offline';
+    if (occupiedContainers.isNotEmpty) return 'busy';
+    return status ?? 'free';
+  }
+
+  // Helper method to extract numeric value from robot code
+  String _extractNumericFromCode(String robotCode) {
     try {
-      final number = int.parse(codeNumber);
-      const alphabets = [
-        'Alpha',
-        'Beta',
-        'Gamma',
-        'Delta',
-        'Epsilon',
-        'Zeta',
-        'Eta',
-        'Theta',
-      ];
-      if (number > 0 && number <= alphabets.length) {
-        return alphabets[number - 1];
+      // Remove ROBOT prefix and any leading zeros to get clean number
+      final numericString = robotCode.replaceAll(RegExp(r'^ROBOT0*'), '');
+      if (numericString.isEmpty) {
+        return '1'; // Default to 1 if no number found
       }
-      return codeNumber;
+      // Parse as int to remove leading zeros, then convert back to string
+      final number = int.parse(numericString);
+      return number.toString();
     } catch (e) {
-      return codeNumber;
+      // If parsing fails, try to extract any digits from the code
+      final match = RegExp(r'\d+').firstMatch(robotCode);
+      if (match != null) {
+        final number = int.parse(match.group(0)!);
+        return number.toString();
+      }
+      return '1'; // Default fallback
     }
   }
-
-  // Check if robot is available for booking
-  bool get isAvailable => online && status == 'free' && totalFreeContainers > 0;
-}
-
-class Container {
-  final String containerCode;
-  final String status;
-
-  // Additional fields for UI display
-  final String? name;
-  final String? capacity;
-  final String? dimensions;
-  final String? occupiedBy;
-
-  const Container({
-    required this.containerCode,
-    required this.status,
-    this.name,
-    this.capacity,
-    this.dimensions,
-    this.occupiedBy,
-  });
-
-  factory Container.fromJson(Map<String, dynamic> json) {
-    return Container(
-      containerCode: json['containerCode'] ?? '',
-      status: json['status'] ?? '',
-      name: json['name'],
-      capacity: json['capacity'],
-      dimensions: json['dimensions'],
-      occupiedBy: json['occupiedBy'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'containerCode': containerCode,
-      'status': status,
-      if (name != null) 'name': name,
-      if (capacity != null) 'capacity': capacity,
-      if (dimensions != null) 'dimensions': dimensions,
-      if (occupiedBy != null) 'occupiedBy': occupiedBy,
-    };
-  }
-
-  Container copyWith({
-    String? containerCode,
-    String? status,
-    String? name,
-    String? capacity,
-    String? dimensions,
-    String? occupiedBy,
-  }) {
-    return Container(
-      containerCode: containerCode ?? this.containerCode,
-      status: status ?? this.status,
-      name: name ?? this.name,
-      capacity: capacity ?? this.capacity,
-      dimensions: dimensions ?? this.dimensions,
-      occupiedBy: occupiedBy ?? this.occupiedBy,
-    );
-  }
-
-  // Helper method to get user-friendly display name
-  String get displayName {
-    if (name != null && name!.isNotEmpty) {
-      return name!;
-    }
-    // Generate friendly name from container code
-    // Example: R-001_C-1 -> Container 1
-    final parts = containerCode.split('_C-');
-    if (parts.length == 2) {
-      return 'Container ${parts[1]}';
-    }
-    return 'Container';
-  }
-
-  // Check if container is available for booking
-  bool get isAvailable => status == 'free';
 }

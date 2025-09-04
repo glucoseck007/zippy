@@ -244,6 +244,8 @@
     "order_creation_failed": "Failed to create order",
     "order_network_error": "Network error. Please check your connection and try again.",
     "order_id": "Order ID",
+    "order_code": "Order Code",
+    "order_price": "Price",
     "estimated_delivery": "Estimated Delivery",
     "order_status": "Status",
     "product_label": "Product",
@@ -257,6 +259,12 @@
     "status_active": "Active",
     "status_completed": "Completed",
     "status_cancelled": "Cancelled",
+    "status_queued": "Queued",
+    "status_explanation_pending": "Your order is being prepared and will be assigned to a robot soon.",
+    "status_explanation_active": "Your order is being delivered! The robot is on its way to your location.",
+    "status_explanation_completed": "Your order has been successfully delivered.",
+    "status_explanation_cancelled": "This order has been cancelled.",
+    "status_explanation_queued": "Your order is in queue. The robot is busy or offline, but will start delivery when available.",
     "success_title": "Order Placed!",
     "success_message": "Your delivery has been booked successfully. You can track your delivery in the Orders section.",
     "order_details_title": "Order Details",
@@ -284,6 +292,17 @@
     "view_progress": "View Progress",
     "receive_order": "Receive Order",
     "pay_order": "Pay",
+    "cancel_order": "Cancel Order",
+    "cancel": {
+      "title": "Cancel Order",
+      "message": "Are you sure you want to cancel this order? This action cannot be undone.",
+      "confirm": "Yes, Cancel",
+      "cancel": "Keep Order",
+      "success_title": "Order Cancelled",
+      "success_message": "Your order has been cancelled successfully.",
+      "error_title": "Cancellation Failed",
+      "error_message": "Failed to cancel the order. Please try again or contact support."
+    },
     "payment": {
       "title": "Payment Confirmation",
       "message": "Proceed with payment for order:",
@@ -375,7 +394,8 @@
       "cancelled": "Cancelled",
       "in_transit": "In Transit",
       "delivered": "Delivered",
-      "paid": "Paid"
+      "paid": "Paid",
+      "queued": "Queued"
     },
     "common":{
       "ok": "OK"

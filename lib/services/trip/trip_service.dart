@@ -131,4 +131,89 @@ class TripService {
       rethrow;
     }
   }
+
+  /// Cancel a trip by trip code
+  static Future<TripResponse?> cancelTrip(String tripCode) async {
+    try {
+      print('TripService: Cancelling trip: $tripCode');
+
+      final response = await ApiClient.get('/trip/cancel?tripCode=$tripCode');
+
+      print('TripService: Cancel response status code: ${response.statusCode}');
+      print('TripService: Cancel response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final tripResponse = TripResponse.fromJson(jsonData);
+
+        print('TripService: Trip cancelled successfully');
+        return tripResponse;
+      } else {
+        print(
+          'TripService: Failed to cancel trip with status code: ${response.statusCode}',
+        );
+        print('TripService: Error response: ${response.body}');
+
+        try {
+          final jsonData = json.decode(response.body);
+          return TripResponse.fromJson(jsonData);
+        } catch (e) {
+          return TripResponse(success: false, message: 'Failed to cancel trip');
+        }
+      }
+    } catch (e, stackTrace) {
+      print('TripService: Error cancelling trip: $e');
+      print('TripService: Stack trace: $stackTrace');
+
+      return TripResponse(
+        success: false,
+        message: 'Network error: Failed to cancel trip',
+      );
+    }
+  }
+
+  /// Continue a trip by trip code
+  static Future<TripResponse?> continueTrip(String tripCode) async {
+    try {
+      print('TripService: Continuing trip: $tripCode');
+
+      final response = await ApiClient.get('/trip/continue?tripCode=$tripCode');
+
+      print(
+        'TripService: Continue response status code: ${response.statusCode}',
+      );
+      print('TripService: Continue response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final tripResponse = TripResponse.fromJson(jsonData);
+
+        print('TripService: Trip continued successfully');
+        return tripResponse;
+      } else {
+        print(
+          'TripService: Failed to continue trip with status code: ${response.statusCode}',
+        );
+        print('TripService: Error response: ${response.body}');
+
+        try {
+          final jsonData = json.decode(response.body);
+          return TripResponse.fromJson(jsonData);
+        } catch (e) {
+          return TripResponse(
+            success: false,
+            message: 'Failed to continue trip',
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      print('TripService: Error continuing trip: $e');
+      print('TripService: Stack trace: $stackTrace');
+
+      return TripResponse(
+        success: false,
+        message: 'Network error: Failed to continue trip',
+      );
+    }
+  }
 }

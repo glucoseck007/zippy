@@ -25,7 +25,9 @@ class OrderService {
 
         print('OrderService: Successfully created order');
         if (orderResponse.data != null) {
-          print('OrderService: Order ID: ${orderResponse.data!.orderId}');
+          print(
+            'OrderService: Order Code: ${orderResponse.data!.orderCode}',
+          ); // Changed from orderId to orderCode
           print('OrderService: Order status: ${orderResponse.data!.status}');
         }
 
@@ -222,7 +224,9 @@ class OrderService {
           'OrderService: Successfully confirmed reservation and created order',
         );
         if (orderResponse.data != null) {
-          print('OrderService: Order ID: ${orderResponse.data!.orderId}');
+          print(
+            'OrderService: Order Code: ${orderResponse.data!.orderCode}',
+          ); // Changed from orderId to orderCode
           print('OrderService: Order status: ${orderResponse.data!.status}');
         }
 

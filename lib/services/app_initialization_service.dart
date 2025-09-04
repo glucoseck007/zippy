@@ -70,8 +70,8 @@ class AppInitializationService {
 
     // You should replace these with your actual MQTT broker details
     const mqttConfig = MqttConfig(
-      brokerHost: '36.50.135.207', // MQTT broker host
-      brokerPort: 1883, // Replace with your MQTT broker port
+      brokerHost: '192.168.0.191', // MQTT broker host
+      brokerPort: 21213, // Replace with your MQTT broker port
       username: 'admin', // Add username if required
       password: '123@123', // Add password if required
     );

@@ -19,6 +19,7 @@ class PickupResponse with _$PickupResponse {
 class PickupData with _$PickupData {
   const factory PickupData({
     required String orderCode,
+    String? tripCode,
     required String status,
     String? otpSentTo,
     String? completedAt,

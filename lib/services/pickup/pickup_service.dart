@@ -8,26 +8,42 @@ class PickupService {
     String orderCode,
     String tripCode,
   ) async {
+    print(
+      'PickupService: Sending OTP request for order: $orderCode, trip: $tripCode',
+    );
+
     try {
-      final response = await ApiClient.post('/order/pickup/send-otp', {
-        'orderCode': orderCode,
-        'tripCode': tripCode,
-      });
+      final requestBody = {'orderCode': orderCode, 'tripCode': tripCode};
+      print('PickupService: Request body: $requestBody');
+
+      final response = await ApiClient.post(
+        '/order/pickup/send-otp',
+        requestBody,
+      );
+
+      print('PickupService: Response status: ${response.statusCode}');
+      print('PickupService: Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        return PickupResponse.fromJson(jsonData);
+        final pickupResponse = PickupResponse.fromJson(jsonData);
+        print('PickupService: OTP send successful: ${pickupResponse.success}');
+        return pickupResponse;
       }
 
+      print(
+        'PickupService: OTP send failed with status: ${response.statusCode}',
+      );
       return PickupResponse(
         success: false,
-        message: 'Failed to send OTP',
+        message: 'Failed to send OTP - Status: ${response.statusCode}',
         data: null,
       );
     } catch (e) {
+      print('PickupService: OTP send error: $e');
       return PickupResponse(
         success: false,
-        message: 'Network error',
+        message: 'Network error: $e',
         data: null,
       );
     }

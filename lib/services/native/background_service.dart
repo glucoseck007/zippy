@@ -557,7 +557,7 @@ Future<bool> _connectToMqttAndCheck(
       // Create MQTT client for background check with unique identifier
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final clientId = 'zippy_bg_${timestamp}_${robotId}_bg_r$retryCount';
-      client = MqttServerClient.withPort('36.50.135.207', clientId, 1883);
+      client = MqttServerClient.withPort('192.168.0.191', clientId, 21213);
 
       client.logging(on: false); // Disable logging in background
       client.setProtocolV311();
@@ -753,7 +753,7 @@ Future<bool> _connectToMqttAndCheckTripProgress(
       // Create MQTT client for background trip progress check
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final clientId = 'zippy_trip_bg_${timestamp}_${tripCode}_bg_r$retryCount';
-      client = MqttServerClient.withPort('36.50.135.207', clientId, 1883);
+      client = MqttServerClient.withPort('192.168.0.191', clientId, 21213);
 
       client.logging(on: false);
       client.setProtocolV311();

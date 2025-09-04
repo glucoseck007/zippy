@@ -24,12 +24,14 @@ class TripProgressScreen extends ConsumerStatefulWidget {
   final String orderCode;
   final String tripCode;
   final String robotCode;
+  final bool showContinueButton;
 
   const TripProgressScreen({
     super.key,
     required this.orderCode,
     required this.tripCode,
     required this.robotCode,
+    this.showContinueButton = false,
   });
 
   @override
@@ -42,6 +44,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
   bool _hasError = false;
   String? _errorMessage;
   Timer? _activityTimer; // Timer to update app activity timestamp
+  bool _isContinuingTrip = false; // Track continue trip loading state
 
   // Robot animation
   late AnimationController _robotAnimationController;
@@ -548,6 +551,7 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
         return ConfirmPickupDialog(
           orderCode: widget.orderCode,
           tripCode: tripCode,
+          robotCode: widget.robotCode,
           onSuccess: () {
             // Update the provider state
             ref.read(_tripProgressProvider.notifier).onPhase2QRScanned();
@@ -1423,6 +1427,96 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
                           ),
                         ),
                       ],
+
+                      // Continue trip button when OTP verification is completed
+                      if (widget.showContinueButton) ...[
+                        const SizedBox(height: 24),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? AppColors.dmButtonColor.withOpacity(0.1)
+                                : AppColors.buttonColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDarkMode
+                                  ? AppColors.dmButtonColor.withOpacity(0.3)
+                                  : AppColors.buttonColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.local_shipping,
+                                color: isDarkMode
+                                    ? AppColors.dmButtonColor
+                                    : AppColors.buttonColor,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Items Verified Successfully!',
+                                style: isDarkMode
+                                    ? AppTypography.dmSubTitleText(
+                                        context,
+                                      ).copyWith(fontWeight: FontWeight.bold)
+                                    : AppTypography.subTitleText(
+                                        context,
+                                      ).copyWith(fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Your package has been verified and placed in the container. Continue your delivery trip to the destination.',
+                                style: isDarkMode
+                                    ? AppTypography.dmBodyText(context)
+                                    : AppTypography.bodyText(context),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isContinuingTrip
+                                      ? null
+                                      : _handleContinueTrip,
+                                  icon: _isContinuingTrip
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                      : const Icon(Icons.play_arrow, size: 18),
+                                  label: Text(
+                                    _isContinuingTrip
+                                        ? 'Starting Trip...'
+                                        : 'Continue Trip',
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDarkMode
+                                        ? AppColors.dmButtonColor
+                                        : AppColors.buttonColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1498,6 +1592,67 @@ class _TripProgressScreenState extends ConsumerState<TripProgressScreen>
     } else {
       // Default case: show end point
       return tripEndPoint ?? tr('pickup.trip_progress.end_point');
+    }
+  }
+
+  Future<void> _handleContinueTrip() async {
+    setState(() {
+      _isContinuingTrip = true;
+    });
+
+    try {
+      final response = await TripService.continueTrip(widget.tripCode);
+
+      if (mounted) {
+        if (response != null && response.success) {
+          // Show success message and hide continue button
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Trip continued successfully! Your robot is now heading to the delivery location.',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+
+          // Refresh trip progress data
+          ref.read(_tripProgressProvider.notifier).initialize();
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response?.message ??
+                    'Failed to continue trip. Please try again.',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Network error: Failed to continue trip. Please check your connection and try again.',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isContinuingTrip = false;
+        });
+      }
     }
   }
 }

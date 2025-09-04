@@ -239,6 +239,7 @@ PickupData _$PickupDataFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$PickupData {
   String get orderCode => throw _privateConstructorUsedError;
+  String? get tripCode => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
   String? get otpSentTo => throw _privateConstructorUsedError;
   String? get completedAt => throw _privateConstructorUsedError;
@@ -262,6 +263,7 @@ abstract class $PickupDataCopyWith<$Res> {
   @useResult
   $Res call({
     String orderCode,
+    String? tripCode,
     String status,
     String? otpSentTo,
     String? completedAt,
@@ -284,6 +286,7 @@ class _$PickupDataCopyWithImpl<$Res, $Val extends PickupData>
   @override
   $Res call({
     Object? orderCode = null,
+    Object? tripCode = freezed,
     Object? status = null,
     Object? otpSentTo = freezed,
     Object? completedAt = freezed,
@@ -294,6 +297,10 @@ class _$PickupDataCopyWithImpl<$Res, $Val extends PickupData>
                 ? _value.orderCode
                 : orderCode // ignore: cast_nullable_to_non_nullable
                       as String,
+            tripCode: freezed == tripCode
+                ? _value.tripCode
+                : tripCode // ignore: cast_nullable_to_non_nullable
+                      as String?,
             status: null == status
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
@@ -323,6 +330,7 @@ abstract class _$$PickupDataImplCopyWith<$Res>
   @useResult
   $Res call({
     String orderCode,
+    String? tripCode,
     String status,
     String? otpSentTo,
     String? completedAt,
@@ -344,6 +352,7 @@ class __$$PickupDataImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? orderCode = null,
+    Object? tripCode = freezed,
     Object? status = null,
     Object? otpSentTo = freezed,
     Object? completedAt = freezed,
@@ -354,6 +363,10 @@ class __$$PickupDataImplCopyWithImpl<$Res>
             ? _value.orderCode
             : orderCode // ignore: cast_nullable_to_non_nullable
                   as String,
+        tripCode: freezed == tripCode
+            ? _value.tripCode
+            : tripCode // ignore: cast_nullable_to_non_nullable
+                  as String?,
         status: null == status
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
@@ -376,6 +389,7 @@ class __$$PickupDataImplCopyWithImpl<$Res>
 class _$PickupDataImpl implements _PickupData {
   const _$PickupDataImpl({
     required this.orderCode,
+    this.tripCode,
     required this.status,
     this.otpSentTo,
     this.completedAt,
@@ -387,6 +401,8 @@ class _$PickupDataImpl implements _PickupData {
   @override
   final String orderCode;
   @override
+  final String? tripCode;
+  @override
   final String status;
   @override
   final String? otpSentTo;
@@ -395,7 +411,7 @@ class _$PickupDataImpl implements _PickupData {
 
   @override
   String toString() {
-    return 'PickupData(orderCode: $orderCode, status: $status, otpSentTo: $otpSentTo, completedAt: $completedAt)';
+    return 'PickupData(orderCode: $orderCode, tripCode: $tripCode, status: $status, otpSentTo: $otpSentTo, completedAt: $completedAt)';
   }
 
   @override
@@ -405,6 +421,8 @@ class _$PickupDataImpl implements _PickupData {
             other is _$PickupDataImpl &&
             (identical(other.orderCode, orderCode) ||
                 other.orderCode == orderCode) &&
+            (identical(other.tripCode, tripCode) ||
+                other.tripCode == tripCode) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.otpSentTo, otpSentTo) ||
                 other.otpSentTo == otpSentTo) &&
@@ -414,8 +432,14 @@ class _$PickupDataImpl implements _PickupData {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, orderCode, status, otpSentTo, completedAt);
+  int get hashCode => Object.hash(
+    runtimeType,
+    orderCode,
+    tripCode,
+    status,
+    otpSentTo,
+    completedAt,
+  );
 
   /// Create a copy of PickupData
   /// with the given fields replaced by the non-null parameter values.
@@ -434,6 +458,7 @@ class _$PickupDataImpl implements _PickupData {
 abstract class _PickupData implements PickupData {
   const factory _PickupData({
     required final String orderCode,
+    final String? tripCode,
     required final String status,
     final String? otpSentTo,
     final String? completedAt,
@@ -444,6 +469,8 @@ abstract class _PickupData implements PickupData {
 
   @override
   String get orderCode;
+  @override
+  String? get tripCode;
   @override
   String get status;
   @override

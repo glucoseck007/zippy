@@ -6,16 +6,20 @@ import 'package:zippy/design/app_colors.dart';
 import 'package:zippy/design/app_typography.dart';
 import 'package:zippy/providers/core/theme_provider.dart';
 import 'package:zippy/services/pickup/pickup_service.dart';
+import 'package:zippy/services/trip/trip_service.dart';
+import 'package:zippy/screens/pickup/trip_progress_screen.dart';
 
 class OTPVerificationDialog extends ConsumerStatefulWidget {
   final String orderCode;
   final String tripCode;
+  final String robotCode;
   final VoidCallback onSuccess;
 
   const OTPVerificationDialog({
     super.key,
     required this.orderCode,
     required this.tripCode,
+    this.robotCode = '',
     required this.onSuccess,
   });
 
@@ -40,11 +44,55 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
   }
 
   Future<void> _sendInitialOTP() async {
+    print(
+      'OTPVerification: Sending initial OTP for order: ${widget.orderCode}, trip: ${widget.tripCode}',
+    );
+
     try {
-      await PickupService.sendOtp(widget.orderCode, widget.tripCode);
+      final response = await PickupService.sendOtp(
+        widget.orderCode,
+        widget.tripCode,
+      );
+
+      if (response != null && response.success) {
+        print('OTPVerification: Initial OTP sent successfully');
+      } else {
+        print(
+          'OTPVerification: Initial OTP send failed - ${response?.message ?? "Unknown error"}',
+        );
+
+        // Show a subtle notification that OTP sending failed
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to send OTP. Please use the "Resend OTP" button.',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     } catch (e) {
-      // If initial OTP sending fails, user can still use resend button
-      // We don't show an error here to avoid interrupting the dialog display
+      print('OTPVerification: Initial OTP send error: $e');
+
+      // Show a subtle notification that OTP sending failed
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Network error: Failed to send OTP. Please use the "Resend OTP" button.',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -252,7 +300,17 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
       if (mounted) {
         if (response != null && response.success) {
           Navigator.pop(context);
-          _showSuccessDialog();
+
+          // Handle different status responses
+          if (response.data?.status == 'CONTAINER_OPENED') {
+            _showContainerCloseDialog();
+          } else if (response.data?.status == 'OTP_VERIFIED') {
+            // For OTP_VERIFIED, show success and return to trip progress with continue button
+            _showOTPVerifiedSuccessDialog();
+          } else {
+            // Default success behavior for other statuses
+            _showSuccessDialog();
+          }
         } else {
           setState(() {
             _errorMessage =
@@ -277,7 +335,10 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
       _isResending = true;
     });
 
-    final themeState = ref.watch(themeProvider);
+    // Check if widget is still mounted before accessing ref
+    if (!mounted) return;
+
+    final themeState = ref.read(themeProvider);
     final isDarkMode = themeState.isDarkMode;
 
     try {
@@ -351,7 +412,359 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
     }
   }
 
+  void _showContainerCloseDialog() {
+    // Check if widget is still mounted before accessing ref
+    if (!mounted) return;
+
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Container Opened', // "Container Opened"
+            style: isDarkMode
+                ? AppTypography.dmHeading(context)
+                : AppTypography.heading(context),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_open,
+                color: isDarkMode
+                    ? AppColors.dmButtonColor
+                    : AppColors.buttonColor,
+                size: 64,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Please place your items in the container and close it securely.',
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Once the container is closed, tap "Continue" to proceed with your delivery.',
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(
+                        context,
+                      ).copyWith(fontSize: 14, color: Colors.grey[600])
+                    : AppTypography.bodyText(
+                        context,
+                      ).copyWith(fontSize: 14, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close container dialog
+                _autoContinueTrip(); // Continue with the trip
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDarkMode
+                    ? AppColors.dmButtonColor
+                    : AppColors.buttonColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text('Continue'), // "Continue"
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _autoContinueTrip() async {
+    // Check if widget is still mounted before accessing ref
+    if (!mounted) return;
+
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    try {
+      // Check mounted again before showing dialog
+      if (!mounted) return;
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Continuing your trip...',
+                  style: isDarkMode
+                      ? AppTypography.dmBodyText(context)
+                      : AppTypography.bodyText(context),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Call the trip continuation API
+      final response = await TripService.continueTrip(widget.tripCode);
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        if (response != null && response.success) {
+          // Show success dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: isDarkMode
+                    ? AppColors.dmCardColor
+                    : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: isDarkMode
+                          ? AppColors.dmSuccessColor
+                          : AppColors.successColor,
+                      size: 64,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Trip continued successfully!',
+                      style: isDarkMode
+                          ? AppTypography.dmHeading(context)
+                          : AppTypography.heading(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your robot is now heading to the delivery location.',
+                      style: isDarkMode
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close success dialog
+                      widget.onSuccess(); // Refresh the pickup screen
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode
+                          ? AppColors.dmButtonColor
+                          : AppColors.buttonColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(tr('pickup.common.ok')),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          // Show error dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: isDarkMode
+                    ? AppColors.dmCardColor
+                    : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error,
+                      color: isDarkMode
+                          ? AppColors.dmRejectColor
+                          : AppColors.rejectColor,
+                      size: 64,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to continue trip',
+                      style: isDarkMode
+                          ? AppTypography.dmHeading(context)
+                          : AppTypography.heading(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      response?.message ??
+                          'Please try again or contact support.',
+                      style: isDarkMode
+                          ? AppTypography.dmBodyText(context)
+                          : AppTypography.bodyText(context),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close error dialog
+                    },
+                    child: Text(
+                      tr('pickup.confirm_pickup.cancel'),
+                      style: isDarkMode
+                          ? AppTypography.dmBodyText(
+                              context,
+                            ).copyWith(color: Colors.grey[400])
+                          : AppTypography.bodyText(
+                              context,
+                            ).copyWith(color: Colors.grey[600]),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close error dialog
+                      _autoContinueTrip(); // Retry
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode
+                          ? AppColors.dmButtonColor
+                          : AppColors.buttonColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text('Try Again'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog if still open
+
+        // Show network error dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: isDarkMode
+                  ? AppColors.dmCardColor
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.wifi_off,
+                    color: isDarkMode
+                        ? AppColors.dmRejectColor
+                        : AppColors.rejectColor,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Connection Error',
+                    style: isDarkMode
+                        ? AppTypography.dmHeading(context)
+                        : AppTypography.heading(context),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please check your internet connection and try again.',
+                    style: isDarkMode
+                        ? AppTypography.dmBodyText(context)
+                        : AppTypography.bodyText(context),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close error dialog
+                  },
+                  child: Text(
+                    tr('pickup.confirm_pickup.cancel'),
+                    style: isDarkMode
+                        ? AppTypography.dmBodyText(
+                            context,
+                          ).copyWith(color: Colors.grey[400])
+                        : AppTypography.bodyText(
+                            context,
+                          ).copyWith(color: Colors.grey[600]),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close error dialog
+                    _autoContinueTrip(); // Retry
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDarkMode
+                        ? AppColors.dmButtonColor
+                        : AppColors.buttonColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text('Try Again'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
+  }
+
   void _showSuccessDialog() {
+    // Check if widget is still mounted before accessing ref
+    if (!mounted) return;
+
     final themeState = ref.read(themeProvider);
     final isDarkMode = themeState.isDarkMode;
 
@@ -388,6 +801,87 @@ class _OTPVerificationDialogState extends ConsumerState<OTPVerificationDialog> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context); // Close success dialog
+                widget.onSuccess(); // Refresh the pickup screen
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDarkMode
+                    ? AppColors.dmButtonColor
+                    : AppColors.buttonColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(tr('pickup.common.ok')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showOTPVerifiedSuccessDialog() {
+    // Check if widget is still mounted before accessing ref
+    if (!mounted) return;
+
+    final themeState = ref.read(themeProvider);
+    final isDarkMode = themeState.isDarkMode;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? AppColors.dmCardColor : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: isDarkMode
+                    ? AppColors.dmSuccessColor
+                    : AppColors.successColor,
+                size: 64,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'OTP Verified Successfully!',
+                style: isDarkMode
+                    ? AppTypography.dmHeading(context)
+                    : AppTypography.heading(context),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your items have been verified. You can now continue your delivery trip.',
+                style: isDarkMode
+                    ? AppTypography.dmBodyText(context)
+                    : AppTypography.bodyText(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close this dialog
+
+                // Navigate to trip progress screen with continue button enabled
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TripProgressScreen(
+                      tripCode: widget.tripCode,
+                      orderCode: widget.orderCode,
+                      robotCode: widget.robotCode,
+                      showContinueButton: true,
+                    ),
+                  ),
+                );
+
                 widget.onSuccess(); // Refresh the pickup screen
               },
               style: ElevatedButton.styleFrom(

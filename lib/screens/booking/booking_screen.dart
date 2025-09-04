@@ -31,19 +31,28 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   String _selectedRoom = ''; // Selected delivery room
 
   // Generate room list from DE-101 to DE-120 (Delta Building)
-  final List<String> _roomOptions = List.generate(
-    20, // 120 - 101 + 1 = 20 rooms
-    (index) => 'DE-${101 + index}',
-  );
+  final List<String> _roomOptions = [
+    ...List.generate(
+      20, // 120 - 101 + 1 = 20 rooms
+      (index) => 'DE-${101 + index}',
+    ),
+    'DE105', // manual
+    'cuuhoa',
+    'WC',
+  ];
 
   // Start point options - same as room options since they're all in Delta building
-  final List<String> _startPointOptions = List.generate(
-    20, // 120 - 101 + 1 = 20 rooms
-    (index) => 'DE-${101 + index}',
-  );
+  final List<String> _startPointOptions = [
+    ...List.generate(
+      20, // 120 - 101 + 1 = 20 rooms
+      (index) => 'DE-${101 + index}',
+    ),
+    'DE105', // manual
+    'cuuhoa',
+    'WC',
+  ];
 
   String? _selectedRobotId;
-  String? _selectedContainerCode;
 
   // Form progress tracking
   int _currentStep = 0;
@@ -54,7 +63,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     super.initState();
     _selectedStartPoint =
         _startPointOptions[0]; // Initialize with first start point
-    _selectedRoom = _roomOptions[0]; // Initialize with first room option
+    _selectedRoom =
+        _getFirstAvailableRoom(); // Initialize with first available room
 
     // Initialize MQTT connection for real-time robot status updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -63,9 +73,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
     // Set up callback for when robots become available
     RobotNotifier.onRobotsAvailable = _onRobotsAvailable;
-
-    // Set up callback for when containers become available (step 4)
-    RobotNotifier.onContainersAvailable = _onContainersAvailable;
   }
 
   @override
@@ -74,13 +81,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     _receiverIdentifierController.dispose();
     // Clear the callbacks to prevent memory leaks
     RobotNotifier.onRobotsAvailable = null;
-    RobotNotifier.onContainersAvailable = null;
     super.dispose();
   }
 
   /// Called when robots become available via MQTT
   void _onRobotsAvailable() {
-    // Only auto-refresh if we're currently on step 4 (robot selection)
+    // Only auto-refresh if we're currently on the final step (robot selection)
     if (_currentStep == 3) {
       print(
         'BookingScreen: 🔄 Auto-refreshing robot selection due to MQTT update',
@@ -98,33 +104,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         );
 
         // Trigger a rebuild to show updated robot list
-        setState(() {
-          // Force UI rebuild - the provider state has already been updated
-        });
-      }
-    }
-  }
-
-  /// Called when containers become available via MQTT (step 5)
-  void _onContainersAvailable() {
-    // Only auto-refresh if we're currently on step 5 (container selection)
-    if (_currentStep == 4) {
-      print(
-        'BookingScreen: 🔄 Auto-refreshing container selection due to MQTT update',
-      );
-
-      // Show a snackbar to inform user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(tr('booking.containers_updated')),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.blue,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
-        // Trigger a rebuild to show updated container list
         setState(() {
           // Force UI rebuild - the provider state has already been updated
         });
@@ -186,28 +165,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       }
 
       if (_selectedRobotId != null && _selectedRobotId!.isNotEmpty) {
-        setState(() {
-          _currentStep++;
-          // Reset container selection when robot changes
-          _selectedContainerCode = null;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(tr('booking.robot_selection_required')),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } else if (_currentStep == 4) {
-      // Step 5: Validate container selection and create order directly
-      if (_selectedContainerCode != null &&
-          _selectedContainerCode!.isNotEmpty) {
         _submitOrder();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(tr('booking.container_selection_required')),
+            content: Text(tr('booking.robot_selection_required')),
             backgroundColor: Colors.red,
           ),
         );
@@ -227,6 +189,17 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         const HomeScreen(),
       );
     }
+  }
+
+  /// Get the first available room that's not the same as the selected start point
+  String _getFirstAvailableRoom() {
+    for (String room in _roomOptions) {
+      if (room != _selectedStartPoint) {
+        return room;
+      }
+    }
+    // Fallback: if all rooms are somehow the same as start point, return the first room
+    return _roomOptions.isNotEmpty ? _roomOptions[0] : '';
   }
 
   // Submit the order directly without reservation
@@ -278,10 +251,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         receiverIdentifier: _receiverIdentifierController.text.trim(),
         productName: _productNameController.text.trim(),
         robotCode: _selectedRobotId!,
-        robotContainerCode: _selectedContainerCode!,
         startPoint: _selectedStartPoint,
-        endpoint: _selectedRoom,
-        approved: false, // Default to false, will be approved by admin/system
+        endPoint: _selectedRoom, // Updated to match API field name
       );
 
       // Create the order directly
@@ -300,16 +271,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           (robot) => robot.robotCode == _selectedRobotId,
           orElse: () => throw Exception('Selected robot not found'),
         );
-        final selectedContainer = selectedRobot.freeContainers.firstWhere(
-          (container) => container.containerCode == _selectedContainerCode,
-          orElse: () => throw Exception('Selected container not found'),
-        );
 
-        _showOrderSuccessDialog(
-          orderResponse,
-          selectedRobot,
-          selectedContainer,
-        );
+        _showOrderSuccessDialog(orderResponse, selectedRobot);
       } else {
         // Order creation failed
         _showOrderErrorDialog(
@@ -327,11 +290,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     }
   }
 
-  void _showOrderSuccessDialog(
-    orderResponse,
-    selectedRobot,
-    selectedContainer,
-  ) {
+  void _showOrderSuccessDialog(orderResponse, selectedRobot) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -343,6 +302,35 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             children: [
               Text(tr('booking.order_created_successfully')),
               const SizedBox(height: 16),
+
+              // Order Code
+              if (orderResponse.data?.orderCode != null) ...[
+                Row(
+                  children: [
+                    Text(
+                      '${tr('booking.order_code')}: ',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Expanded(child: Text(orderResponse.data!.orderCode!)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              // Price
+              if (orderResponse.data?.price != null) ...[
+                Row(
+                  children: [
+                    Text(
+                      '${tr('booking.order_price')}: ',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Expanded(child: Text('${orderResponse.data!.price} VND')),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+
               Row(
                 children: [
                   Text(
@@ -372,16 +360,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   Expanded(child: Text(selectedRobot.displayName)),
                 ],
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    '${tr('booking.container_label')}: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Expanded(child: Text(selectedContainer.displayName)),
-                ],
-              ),
               if (orderResponse.data?.status != null) ...[
                 const SizedBox(height: 8),
                 Row(
@@ -390,10 +368,58 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       '${tr('booking.order_status')}: ',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    Expanded(
-                      child: Text(_translateStatus(orderResponse.data!.status)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(orderResponse.data!.status),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getStatusIcon(orderResponse.data!.status),
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _translateStatus(orderResponse.data!.status),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                // Status explanation
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(
+                      orderResponse.data!.status,
+                    ).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _getStatusColor(
+                        orderResponse.data!.status,
+                      ).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    _getStatusExplanation(orderResponse.data!.status),
+                    style: TextStyle(
+                      color: _getStatusColor(orderResponse.data!.status),
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ],
               if (orderResponse.data?.estimatedDeliveryTime != null) ...[
@@ -440,8 +466,64 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         return tr('booking.status_completed');
       case 'cancelled':
         return tr('booking.status_cancelled');
+      case 'queued':
+        return tr('booking.status_queued');
       default:
         return status; // Return original if no translation found
+    }
+  }
+
+  // Helper function to get status color
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'active':
+        return Colors.green;
+      case 'completed':
+        return Colors.blue;
+      case 'cancelled':
+        return Colors.red;
+      case 'queued':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Helper function to get status icon
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Icons.schedule;
+      case 'active':
+        return Icons.local_shipping;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      case 'queued':
+        return Icons.queue;
+      default:
+        return Icons.info;
+    }
+  }
+
+  // Helper function to get status explanation
+  String _getStatusExplanation(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return tr('booking.status_explanation_pending');
+      case 'active':
+        return tr('booking.status_explanation_active');
+      case 'completed':
+        return tr('booking.status_explanation_completed');
+      case 'cancelled':
+        return tr('booking.status_explanation_cancelled');
+      case 'queued':
+        return tr('booking.status_explanation_queued');
+      default:
+        return 'Order status information';
     }
   }
 
@@ -562,7 +644,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       children: [
                         // Animated progress indicators
                         Row(
-                          children: List.generate(5, (index) {
+                          children: List.generate(4, (index) {
                             // Different color for each step
                             Color indicatorColor;
                             if (index == 0) {
@@ -577,14 +659,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               indicatorColor = Color(
                                 0xffFAB12F,
                               ); // Third step: Yellow (Endpoint)
-                            } else if (index == 3) {
+                            } else {
                               indicatorColor = Color(
                                 0xff2ECC71,
                               ); // Fourth step: Green (Robot)
-                            } else {
-                              indicatorColor = Color(
-                                0xff3498DB,
-                              ); // Fifth step: Blue (Container)
                             }
 
                             return Expanded(
@@ -610,7 +688,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
                         // Step indicator text
                         Text(
-                          '${tr('booking.step')} ${_currentStep + 1} ${tr('booking.of')} 5',
+                          '${tr('booking.step')} ${_currentStep + 1} ${tr('booking.of')} 4',
                           style: isDarkMode
                               ? AppTypography.dmSubTitleText(context)
                               : AppTypography.subTitleText(context),
@@ -637,7 +715,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               ),
                             ),
                             child: Text(
-                              _currentStep == 4
+                              _currentStep == 3
                                   ? tr('booking.create_order')
                                   : tr('booking.next'),
                               style: AppTypography.buttonText(context),
@@ -667,8 +745,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         return _buildRoomSelectionStep(isDarkMode);
       case 3:
         return _buildRobotSelectionStep(isDarkMode);
-      case 4:
-        return _buildContainerSelectionStep(isDarkMode);
       default:
         return Container();
     }
@@ -781,6 +857,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               onTap: () {
                 setState(() {
                   _selectedStartPoint = startPoint;
+                  // Clear selected room if it's the same as the new start point
+                  if (_selectedRoom == startPoint) {
+                    _selectedRoom =
+                        _getFirstAvailableRoom(); // Select next available room
+                  }
                 });
               },
               child: Container(
@@ -865,17 +946,25 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           itemBuilder: (context, index) {
             final room = _roomOptions[index];
             final isSelected = room == _selectedRoom;
+            final isStartPoint =
+                room ==
+                _selectedStartPoint; // Check if this room is the selected start point
+            final isDisabled = isStartPoint; // Disable if it's the start point
 
             return InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedRoom = room;
-                });
-              },
+              onTap: isDisabled
+                  ? null
+                  : () {
+                      setState(() {
+                        _selectedRoom = room;
+                      });
+                    },
               child: Container(
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.buttonColor
+                      : isDisabled
+                      ? (isDarkMode ? Colors.grey[800] : Colors.grey[300])
                       : (isDarkMode
                             ? AppColors.dmCardColor
                             : AppColors.cardColor.withOpacity(0.2)),
@@ -883,28 +972,50 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   border: Border.all(
                     color: isSelected
                         ? AppColors.buttonColor
+                        : isDisabled
+                        ? (isDarkMode ? Colors.grey[600]! : Colors.grey[400]!)
                         : (isDarkMode ? Colors.white24 : Colors.black12),
                     width: 1,
                   ),
                 ),
                 child: Center(
-                  child: Text(
-                    room,
-                    style:
-                        (isDarkMode
-                                ? AppTypography.dmBodyText(context)
-                                : AppTypography.bodyText(context))
-                            .copyWith(
-                              color: isSelected
-                                  ? Colors.white
-                                  : (isDarkMode
-                                        ? Colors.white
-                                        : Colors.black87),
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              fontSize: 12,
-                            ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        room,
+                        style:
+                            (isDarkMode
+                                    ? AppTypography.dmBodyText(context)
+                                    : AppTypography.bodyText(context))
+                                .copyWith(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : isDisabled
+                                      ? (isDarkMode
+                                            ? Colors.grey[400]
+                                            : Colors.grey[600])
+                                      : (isDarkMode
+                                            ? Colors.white
+                                            : Colors.black87),
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  fontSize: 12,
+                                ),
+                      ),
+                      if (isDisabled)
+                        Text(
+                          '(Start)',
+                          style: TextStyle(
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                            fontSize: 8,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -1170,32 +1281,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    size: 16,
-                                    color: Colors.orange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${tr('booking.eta')}: ${robot.estimatedArrival ?? tr('booking.unknown')}',
-                                    style:
-                                        (isDarkMode
-                                                ? AppTypography.dmBodyText(
-                                                    context,
-                                                  )
-                                                : AppTypography.bodyText(
-                                                    context,
-                                                  ))
-                                            .copyWith(
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                  ),
-                                ],
-                              ),
                             ],
                           ),
                         ),
@@ -1377,16 +1462,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                         color: Colors.red.withOpacity(0.8),
                                       ),
                             ),
-                            Text(
-                              '${tr('booking.available_in')}: ${robot.estimatedArrival ?? tr('booking.unknown')}',
-                              style:
-                                  (isDarkMode
-                                          ? AppTypography.dmBodyText(context)
-                                          : AppTypography.bodyText(context))
-                                      .copyWith(
-                                        color: Colors.red.withOpacity(0.8),
-                                      ),
-                            ),
                           ],
                         ),
                       ),
@@ -1415,372 +1490,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               ],
             ),
           ),
-        ],
-      ],
-    );
-  }
-
-  // Step 4: Container Selection
-  Widget _buildContainerSelectionStep(bool isDarkMode) {
-    final robotState = ref.watch(robotProvider);
-
-    if (!robotState.isLoaded || _selectedRobotId == null) {
-      return Center(child: Text(tr('booking.please_select_robot_first')));
-    }
-
-    // Get selected robot details from the robot state
-    final allRobots = [...robotState.freeRobots, ...robotState.busyRobots];
-    final selectedRobot = allRobots.firstWhere(
-      (robot) => robot.robotCode == _selectedRobotId,
-      orElse: () => throw Exception('Selected robot not found'),
-    );
-
-    // Get containers for the selected robot
-    final containers = selectedRobot.freeContainers;
-    final freeContainers = containers
-        .where((container) => container.isAvailable)
-        .toList();
-    final occupiedContainers = containers
-        .where((container) => !container.isAvailable)
-        .toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Robot info header
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? AppColors.dmCardColor.withOpacity(0.5)
-                : AppColors.cardColor.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.buttonColor.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.smart_toy,
-                  color: Colors.green,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${tr('booking.selected_robot')}: ${selectedRobot.displayName}',
-                      style:
-                          (isDarkMode
-                                  ? AppTypography.dmSubTitleText(context)
-                                  : AppTypography.subTitleText(context))
-                              .copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${tr('booking.eta')}: ${selectedRobot.estimatedArrival ?? tr('booking.unknown')}',
-                      style: isDarkMode
-                          ? AppTypography.dmBodyText(context)
-                          : AppTypography.bodyText(context),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        Text(
-          tr('booking.select_container'),
-          style: isDarkMode
-              ? AppTypography.dmSubTitleText(context)
-              : AppTypography.subTitleText(context),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          tr('booking.container_selection_desc'),
-          style: isDarkMode
-              ? AppTypography.dmBodyText(
-                  context,
-                ).copyWith(color: Colors.grey[400])
-              : AppTypography.bodyText(
-                  context,
-                ).copyWith(color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 16),
-
-        // Available Containers Section
-        if (freeContainers.isNotEmpty) ...[
-          Text(
-            '${tr('booking.available_containers')} (${freeContainers.length})',
-            style:
-                (isDarkMode
-                        ? AppTypography.dmSubTitleText(context)
-                        : AppTypography.subTitleText(context))
-                    .copyWith(color: Colors.green, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-
-          ...freeContainers.map((container) {
-            final isSelected =
-                container.containerCode == _selectedContainerCode;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedContainerCode = container.containerCode;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? (isDarkMode
-                              ? AppColors.dmSelectedColor
-                              : AppColors.selectedColor)
-                        : (isDarkMode
-                              ? AppColors.dmCardColor
-                              : AppColors.cardColor.withOpacity(0.2)),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.buttonColor
-                          : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.inventory_2,
-                          color: Colors.blue,
-                          size: 30,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              container.displayName,
-                              style:
-                                  (isDarkMode
-                                          ? AppTypography.dmSubTitleText(
-                                              context,
-                                            )
-                                          : AppTypography.subTitleText(context))
-                                      .copyWith(
-                                        fontWeight: isSelected
-                                            ? FontWeight.bold
-                                            : FontWeight.w600,
-                                      ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.scale,
-                                  size: 16,
-                                  color: Colors.orange,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${tr('booking.capacity')}: ${container.capacity ?? '5kg'}',
-                                  style: isDarkMode
-                                      ? AppTypography.dmBodyText(context)
-                                      : AppTypography.bodyText(context),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.straighten,
-                                  size: 16,
-                                  color: Colors.purple,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${tr('booking.size')}: ${container.dimensions ?? '30x20x15cm'}',
-                                  style: isDarkMode
-                                      ? AppTypography.dmBodyText(context)
-                                      : AppTypography.bodyText(context),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.check_circle_outline,
-                                  size: 16,
-                                  color: Colors.green,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${tr('booking.status')}: ${tr('booking.status_available')}',
-                                  style: isDarkMode
-                                      ? AppTypography.dmBodyText(context)
-                                      : AppTypography.bodyText(context),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (isSelected)
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: const BoxDecoration(
-                            color: AppColors.buttonColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ],
-
-        if (freeContainers.isEmpty) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.orange.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.warning, color: Colors.orange, size: 30),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    tr('booking.no_containers_available'),
-                    style:
-                        (isDarkMode
-                                ? AppTypography.dmBodyText(context)
-                                : AppTypography.bodyText(context))
-                            .copyWith(color: Colors.orange),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-
-        if (occupiedContainers.isNotEmpty) ...[
-          const SizedBox(height: 20),
-
-          // Occupied Containers Section (for info)
-          Text(
-            tr('booking.occupied_containers'),
-            style:
-                (isDarkMode
-                        ? AppTypography.dmSubTitleText(context)
-                        : AppTypography.subTitleText(context))
-                    .copyWith(color: Colors.red, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-
-          ...occupiedContainers.map((container) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.red.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2,
-                        color: Colors.red,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            container.displayName,
-                            style:
-                                (isDarkMode
-                                        ? AppTypography.dmSubTitleText(context)
-                                        : AppTypography.subTitleText(context))
-                                    .copyWith(
-                                      color: Colors.red,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${tr('booking.occupied_by')}: ${container.occupiedBy ?? tr('booking.unknown')}',
-                            style:
-                                (isDarkMode
-                                        ? AppTypography.dmBodyText(context)
-                                        : AppTypography.bodyText(context))
-                                    .copyWith(
-                                      color: Colors.red.withOpacity(0.8),
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
         ],
       ],
     );
